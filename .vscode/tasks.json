@@ -1,17 +1,11 @@
-{
+﻿{
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "🌴 TBS Deteksi — Build & Run",
+      "label": "Build APK (Gradle)",
       "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\run.ps1"
-      ],
+      "command": "pwsh",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/run.ps1", "-SkipBuild"],
       "group": {
         "kind": "build",
         "isDefault": true
@@ -20,55 +14,48 @@
         "echo": true,
         "reveal": "always",
         "focus": true,
-        "panel": "new",
-        "close": false
-      },
-      "problemMatcher": []
+        "panel": "shared"
+      }
     },
     {
-      "label": "🌴 TBS Deteksi — Dev Mode",
+      "label": "Build & Install APK",
       "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\run.ps1",
-        "-Dev"
-      ],
+      "command": "pwsh",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/run.ps1"],
       "group": "build",
       "presentation": {
         "echo": true,
         "reveal": "always",
         "focus": true,
-        "panel": "new",
-        "close": false
-      },
-      "problemMatcher": []
+        "panel": "shared"
+      }
     },
     {
-      "label": "🌴 TBS Deteksi — Backend only (skip build)",
+      "label": "Build React Only",
       "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\run.ps1",
-        "-SkipBuild",
-        "-SkipModel"
-      ],
+      "command": "npm",
+      "args": ["run", "build"],
+      "cwd": "${workspaceFolder}/frontend",
       "group": "build",
       "presentation": {
         "echo": true,
         "reveal": "always",
         "focus": true,
-        "panel": "new",
-        "close": false
-      },
-      "problemMatcher": []
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Reinstall APK",
+      "type": "shell",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/run.ps1", "-Reinstall"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
     }
   ]
 }

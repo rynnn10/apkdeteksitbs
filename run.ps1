@@ -1,157 +1,111 @@
 <#
 .SYNOPSIS
-  Build & Run TBS Deteksi -- satu klik jalankan full aplikasi
+  Build & Run TBS Deteksi - Native Android (Gradle)
 .DESCRIPTION
-  Script ini akan:
-  1. Cek Python + Node.js
-  2. Build frontend (React/Vite --> dist/)
-  3. Generate dummy model jika model_tbs.tflite belum ada
-  4. Jalankan backend FastAPI (serve frontend + API)
-  5. Buka browser ke http://localhost:8000
-.PARAMETER Port
-  Port untuk server (default: 8000)
-.PARAMETER Dev
-  Dev mode: API only (frontend dijalankan terpisah via npm run dev)
-.PARAMETER SkipBuild
-  Skip build frontend (pakai dist/ yang sudah ada)
-.PARAMETER SkipModel
-  Skip generate dummy model
-.PARAMETER NoBrowser
-  Jangan buka browser otomatis
+  1. Build React frontend -> dist/
+  2. Copy dist/ to app/src/main/assets/
+  3. Build APK via gradlew
+  4. Install debug APK via ADB
+  5. Launch app on device
 .EXAMPLE
-  .\run.ps1                           # Full build + run
-  .\run.ps1 -SkipBuild                # Tanpa build ulang frontend
-  .\run.ps1 -Dev                      # Dev mode, backend API only
-  .\run.ps1 -Port 3000                # Port custom
+  .\run.ps1                  # Full build + install
+  .\run.ps1 -SkipBuild       # Skip React build
+  .\run.ps1 -Reinstall       # ADB reinstall only
 #>
 param(
-    [int]$Port = 8000,
-    [switch]$Dev,
     [switch]$SkipBuild,
-    [switch]$SkipModel,
-    [switch]$NoBrowser
+    [switch]$Reinstall,
+    [switch]$NoBrowser,
+    [string]$Device
 )
 
 $ErrorActionPreference = "Stop"
 $ROOT = $PSScriptRoot
-$BACKEND = Join-Path $ROOT "backend"
 $FRONTEND = Join-Path $ROOT "frontend"
-$MODEL_DIR = Join-Path $BACKEND "model_output"
-$TFLITE = Join-Path $MODEL_DIR "model_tbs.tflite"
+$APP_ASSETS = Join-Path $ROOT "app\src\main\assets"
+$APP_ID = "com.tbsdeteksi.kelapa.sawit"
+$DEBUG_APP_ID = "$APP_ID.debug"
 
 Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Green
-Write-Host "  TBS DETEKSI KELAPA SAWIT - Build & Run" -ForegroundColor Green
+Write-Host "  TBS DETEKSI - Native Android Build" -ForegroundColor Green
 Write-Host ("=" * 60) -ForegroundColor Green
 Write-Host ""
 
-# -- 1. Cek Prerequisites
-Write-Host "[1/5] Cek prerequisites..." -ForegroundColor Cyan
-
-try {
-    $py = python --version 2>&1
-    Write-Host "  Python : $py" -ForegroundColor Green
-} catch {
-    Write-Host "  ERROR: Python tidak ditemukan!" -ForegroundColor Red
-    exit 1
-}
-
-try {
-    $node = node --version 2>&1
-    Write-Host "  Node   : $node" -ForegroundColor Green
-} catch {
-    Write-Host "  ERROR: Node.js tidak ditemukan!" -ForegroundColor Red
-    exit 1
-}
-
-# -- 2. Generate Dummy Model (kalau belum ada)
-if (-not $SkipModel) {
-    if (-not (Test-Path $TFLITE)) {
-        Write-Host ""
-        Write-Host "[2/5] Model belum ada - generate dummy..." -ForegroundColor Yellow
-        Push-Location $BACKEND
-        python generate_dummy_model.py
-        Pop-Location
-        if (Test-Path $TFLITE) {
-            Write-Host "  Model generated: $TFLITE" -ForegroundColor Green
-        } else {
-            Write-Host "  WARNING: Generate dummy model gagal" -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "[2/5] Model TFLite sudah ada ($TFLITE)" -ForegroundColor Green
-    }
-} else {
-    Write-Host "[2/5] SkipModel - tidak cek model" -ForegroundColor Yellow
-}
-
-# -- 3. Build Frontend
-if (-not $SkipBuild -and -not $Dev) {
-    Write-Host ""
-    Write-Host "[3/5] Build frontend (React/Vite)..." -ForegroundColor Cyan
+# Build React
+if (-not $SkipBuild -and -not $Reinstall) {
+    Write-Host "[1/4] Build React frontend..." -ForegroundColor Cyan
     Push-Location $FRONTEND
-
+    
     if (-not (Test-Path "node_modules")) {
         Write-Host "  npm install..." -ForegroundColor Yellow
         npm install 2>&1 | Out-Null
     }
-
+    
     Write-Host "  npm run build..." -ForegroundColor Yellow
     npm run build 2>&1
-
-    $distDir = Join-Path $FRONTEND "dist"
-    if (Test-Path $distDir) {
-        Write-Host "  Frontend built: $distDir" -ForegroundColor Green
-    } else {
-        Write-Host "  ERROR: Build frontend gagal!" -ForegroundColor Red
+    
+    $dist = Join-Path $FRONTEND "dist"
+    if (-not (Test-Path $dist)) {
+        Write-Host "  ERROR: Build gagal!" -ForegroundColor Red
         Pop-Location
         exit 1
     }
+    
     Pop-Location
-} elseif ($Dev) {
-    Write-Host "[3/5] Dev mode - skip build (frontend via npm run dev)" -ForegroundColor Yellow
+    Write-Host "  Build OK" -ForegroundColor Green
 } else {
-    Write-Host "[3/5] SkipBuild - gunakan dist/ yang sudah ada" -ForegroundColor Yellow
+    Write-Host "[1/4] Build skipped" -ForegroundColor Yellow
 }
 
-# -- 4. Install Python deps
-Write-Host ""
-Write-Host "[4/5] Cek Python dependencies..." -ForegroundColor Cyan
-Push-Location $BACKEND
-try {
-    python -c "import fastapi; import uvicorn; import tensorflow; import PIL" 2>&1 | Out-Null
-    Write-Host "  Dependencies OK" -ForegroundColor Green
-} catch {
-    Write-Host "  Install dependencies..." -ForegroundColor Yellow
-    pip install -r requirements.txt 2>&1
-}
-Pop-Location
-
-# -- 5. Jalankan Server
-Write-Host ""
-Write-Host "[5/5] Start server di port $Port..." -ForegroundColor Cyan
-Write-Host ""
-
-if (-not $NoBrowser -and -not $Dev) {
-    Start-Process "http://localhost:$Port"
-    Start-Sleep 1
+# Copy to assets
+if (-not $Reinstall) {
+    Write-Host ""
+    Write-Host "[2/4] Copy dist/ to assets/" -ForegroundColor Cyan
+    
+    if (Test-Path $APP_ASSETS) {
+        Remove-Item $APP_ASSETS -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $APP_ASSETS -Force | Out-Null
+    
+    $dist = Join-Path $FRONTEND "dist"
+    if (Test-Path $dist) {
+        Copy-Item "$dist\*" $APP_ASSETS -Recurse -Force
+        Write-Host "  Copied OK" -ForegroundColor Green
+    }
 }
 
-Push-Location $BACKEND
-if ($Dev) {
-    Write-Host "=== BACKEND STARTED (DEV MODE) ===" -ForegroundColor Magenta
-    Write-Host "Backend : http://localhost:$Port" -ForegroundColor White
-    Write-Host "Frontend: http://localhost:3000  (jalankan npm run dev di folder frontend)" -ForegroundColor White
-    Write-Host "==================================" -ForegroundColor Magenta
-    python main.py --dev
-} else {
-    Write-Host "=== APLIKASI BERJALAN ===" -ForegroundColor Magenta
-    Write-Host "Buka  : http://localhost:$Port" -ForegroundColor White
-    Write-Host "Stop  : Ctrl+C" -ForegroundColor White
-    Write-Host "=========================" -ForegroundColor Magenta
-    $env:APP_PORT = $Port
-    python main.py
+# Gradle build
+if (-not $Reinstall) {
+    Write-Host ""
+    Write-Host "[3/4] Build APK via Gradle..." -ForegroundColor Cyan
+    
+    & ".\gradlew.bat" assembleDebug
+    
+    $apk = ".\app\build\outputs\apk\debug\app-debug.apk"
+    if (-not (Test-Path $apk)) {
+        Write-Host "  ERROR: Gradle build gagal!" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  Build OK: $apk" -ForegroundColor Green
 }
-Pop-Location
+
+# Install via ADB
+Write-Host ""
+Write-Host "[4/4] Install APK..." -ForegroundColor Cyan
+
+$adbCmd = @("adb")
+if ($Device) { $adbCmd += @("-s", $Device) }
+
+& $adbCmd uninstall $DEBUG_APP_ID 2>&1 | Out-Null
+& $adbCmd uninstall $APP_ID 2>&1 | Out-Null
+
+$apk = ".\app\build\outputs\apk\debug\app-debug.apk"
+& $adbCmd install -r $apk
 
 Write-Host ""
-Write-Host "Aplikasi berhenti." -ForegroundColor Yellow
+Write-Host ("=" * 60) -ForegroundColor Green
+Write-Host "  SUKSES! Aplikasi ter-install" -ForegroundColor Green
+Write-Host "  Launch: adb shell am start -n $APP_ID/.MainActivity" -ForegroundColor White
+Write-Host ("=" * 60) -ForegroundColor Green
+Write-Host ""

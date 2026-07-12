@@ -1,6 +1,8 @@
 # 🌴 TBS Deteksi Kelapa Sawit
 
-Aplikasi web **deteksi tingkat kematangan Tandan Buah Segar (TBS) kelapa sawit** menggunakan AI Computer Vision dengan TensorFlow Lite.
+**Aplikasi Android native** untuk deteksi tingkat kematangan Tandan Buah Segar (TBS) kelapa sawit menggunakan AI Computer Vision dengan TensorFlow Lite.
+
+Frontend React (Web) di-bundle ke dalam aplikasi Android (WebView) — bisa diinstall sebagai APK, tidak perlu server lokal untuk digunakan.
 
 ---
 
@@ -13,6 +15,74 @@ Aplikasi web **deteksi tingkat kematangan Tandan Buah Segar (TBS) kelapa sawit**
 - 📋 **Riwayat deteksi** lengkap dengan timestamp (SQLite)
 - 📊 **Dashboard statistik** — Pie chart distribusi + Bar chart tren harian (Recharts)
 - 📱 **Mobile-friendly UI** — Tombol besar, kontras tinggi, akses kamera via browser
+
+## 📱 Build APK Android
+
+### Prasyarat
+
+- **Java JDK 17+** (`java -version`)
+- **Android SDK** (Android Studio atau command-line tools)
+- **Node.js 18+** & npm
+- **Gradle** (sudah ter-bundle via gradlew)
+
+### 🚀 Quick Build (1 Klik)
+
+```powershell
+.\run.ps1
+```
+
+Script ini akan:
+1. Build React frontend (`npm run build`)
+2. Copy `dist/` ke `app/src/main/assets/`
+3. Build APK via Gradle (`gradlew assembleDebug`)
+4. Install APK via ADB ke device/emulator yang terhubung
+
+**Output:** `app/build/outputs/apk/debug/app-debug.apk`
+
+### ⌨️ Build dari VSCode
+
+Tekan **Ctrl+Shift+B** (Windows/Linux) atau **Cmd+Shift+B** (Mac)
+
+Pilih task:
+- `Build APK (Gradle)` - Build APK (default)
+- `Build & Install APK` - Build + install via ADB
+- `Reinstall APK` - Install ulang tanpa rebuild
+
+### 🛠️ Manual Build
+
+```powershell
+# 1. Build React
+cd frontend
+npm install
+npm run build
+
+# 2. Copy ke assets
+cd ..
+Copy-Item frontend\dist\* app\src\main\assets\ -Recurse -Force
+
+# 3. Build APK
+.\gradlew.bat assembleDebug
+
+# 4. Install
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+```
+
+### 📦 Build Release (Signed APK)
+
+Set environment variables sebelum build:
+
+```powershell
+$env:KEYSTORE_PATH="path\to\your-key.jks"
+$env:STORE_PASSWORD="your-store-password"
+$env:KEY_PASSWORD="your-key-password"
+
+.\gradlew.bat assembleRelease
+```
+
+**Output:** `app/build/outputs/apk/release/app-release.apk`
+
+---
+
 
 ---
 
@@ -45,6 +115,19 @@ Aplikasi web **deteksi tingkat kematangan Tandan Buah Segar (TBS) kelapa sawit**
 
 ```
 tbs-deteksi/
+├── app/                              # Android native (Kotlin + Compose)
+│   ├── src/main/
+│   │   ├── AndroidManifest.xml
+│   │   ├── java/com/tbsdeteksi/
+│   │   │   ├── MainActivity.kt
+│   │   │   └── ui/theme/
+│   │   ├── res/values/
+│   │   ├── res/xml/
+│   │   └── assets/
+│   │       └── index.html          # React app bundle
+│   ├── build.gradle.kts
+│   ├── proguard-rules.pro
+│   └── .gitignore
 ├── backend/
 │   ├── main.py                    # FastAPI server (5 endpoint)
 │   ├── model_handler.py           # Load TFLite, preprocess 224x224, predict
@@ -67,6 +150,13 @@ tbs-deteksi/
 │           ├── HasilDeteksi.jsx   # Kartu hasil + score bars + rekomendasi
 │           ├── Riwayat.jsx        # List history deteksi dari API
 │           └── Dashboard.jsx      # PieChart + BarChart (Recharts)
+├── build.gradle.kts
+├── settings.gradle.kts
+├── gradle.properties
+├── gradlew / gradlew.bat
+├── gradle/libs.versions.toml
+├── run.ps1                        # Build & install APK
+├── .vscode/tasks.json             # Ctrl+Shift+B shortcuts
 └── README.md
 ```
 

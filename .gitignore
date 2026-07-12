@@ -1,35 +1,21 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-venv/
-.env
-*.egg-info/
-
-# Model files (large)
-*.keras
-*.tflite
-!model_output/labels.txt
-
-# Uploads
-backend/uploads/*
-!backend/uploads/.gitkeep
-
-# Frontend build output
-frontend/dist/
-
-# Node
-node_modules/
-
-# IDE — kecuali tasks.json yang di-commit
+﻿.gradle/
 .idea/
-.vscode/*
-!.vscode/tasks.json
-*.swp
-
-# OS
+*.iml
+local.properties
 .DS_Store
-Thumbs.db
-
-# Database
-*.db
+build/
+app/build/
+*.apk
+*.aab
+.vscode/
+node_modules/
+frontend/dist/
+backend/uploads/
+backend/__pycache__/
+backend/*.db
+backend/.venv/
+backend/model_output/*.keras
+backend/model_output/*.h5
+debug.keystore
+*.jks
+!debug.keystore

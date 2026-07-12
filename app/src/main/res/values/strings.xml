@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">TBS Deteksi</string>
+    <string name="app_desc">Deteksi tingkat kematangan Tandan Buah Segar kelapa sawit</string>
+    <string name="camera_permission_required">Izin kamera diperlukan</string>
+    <string name="location_permission_required">Izin lokasi diperlukan</string>
+    <string name="menu_home">Beranda</string>
+    <string name="menu_history">Riwayat</string>
+    <string name="menu_dashboard">Statistik</string>
+    <string name="menu_settings">Pengaturan</string>
+</resources>
