@@ -246,25 +246,14 @@ function Stop-GradleDaemon {
 function Uninstall-OldApp {
     param([string]$TargetDeviceId)
 
-    # Skip uninstall for mDNS device IDs (they cause quoting issues)
-    if ($TargetDeviceId -match "_tcp$") {
-        Write-Host "   (mDNS device - skip uninstall, install -r akan auto-replace)" -ForegroundColor Yellow
-        return
-    }
-
     Write-Host ""
     Write-Host "Menghapus versi aplikasi lama di HP..." -ForegroundColor Cyan
     Write-Host ('   Package: ' + $PackageName) -ForegroundColor Gray
 
     Confirm-Step -Message "Hapus aplikasi lama dari HP?" -Action "UNINSTALL"
 
-    if ([string]::IsNullOrWhiteSpace($TargetDeviceId)) {
-        & adb uninstall "$PackageName" 2>&1 | Out-Null
-        & adb uninstall "$DEBUG_APP_ID" 2>&1 | Out-Null
-    } else {
-        & adb -s $TargetDeviceId uninstall "$PackageName" 2>&1 | Out-Null
-        & adb -s $TargetDeviceId uninstall "$DEBUG_APP_ID" 2>&1 | Out-Null
-    }
+    & adb uninstall "$PackageName" 2>&1 | Out-Null
+    & adb uninstall "$DEBUG_APP_ID" 2>&1 | Out-Null
     Write-Host "   Selesai." -ForegroundColor Green
 }
 
