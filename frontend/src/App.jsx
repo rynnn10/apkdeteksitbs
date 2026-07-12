@@ -67,7 +67,8 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>TBS Deteksi v1.0 — Kelapa Sawit Indonesia Maju</p>
+        <p>TBS Deteksi v1.0.6 — Kelapa Sawit Indonesia Maju</p>
+        <p style={{fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem'}}>Last updated: 2026-07-12 11:15 | Model: MobileNetV2</p>
       </footer>
     </div>
   );

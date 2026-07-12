@@ -79,6 +79,8 @@ class MainActivity : ComponentActivity() {
                         databaseEnabled = true
                         allowFileAccess = true
                         allowContentAccess = true
+                        allowFileAccessFromFileURLs = true
+                        allowUniversalAccessFromFileURLs = true
                         mediaPlaybackRequiresUserGesture = false
                         setSupportZoom(true)
                         builtInZoomControls = false

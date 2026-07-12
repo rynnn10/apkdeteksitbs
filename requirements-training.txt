@@ -1,0 +1,7 @@
+# Training Requirements
+# Install: pip install -r requirements-training.txt
+
+tensorflow>=2.20.0
+numpy>=1.26.0
+pillow>=10.4.0
+matplotlib>=3.9.0

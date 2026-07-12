@@ -169,6 +169,7 @@ function dummyPredict() {
  * Cek apakah TFJS model tersedia
  */
 export async function isOnDeviceReady() {
+  if (typeof window !== "undefined" && window.location.protocol === "file:") return false;
   try {
     const res = await fetch('/model_tfjs/model.json', { method: 'HEAD' });
     return res.ok;

@@ -16,6 +16,10 @@ backend/*.db
 backend/.venv/
 backend/model_output/*.keras
 backend/model_output/*.h5
+backend/model_output/*.tflite
+backend/model_output/model_info.json
 debug.keystore
 *.jks
 !debug.keystore
+dataset/
+*.log

@@ -299,16 +299,84 @@ Browser:     http://localhost:3000
 
 **Frontend:** React 18 · Vite · Recharts · CSS3 (Mobile-first, no CSS framework)
 
+**Android:** Kotlin · Jetpack Compose · WebView · Gradle 8.7
+
 **Model AI:** MobileNetV2 (Transfer Learning) · TFLite (quantized) · Input 224×224 RGB
+
+**Training:** MobileNetV2 pre-trained · ImageNet weights · 2.4M params (164K trainable) · Data Augmentation
+
+---
+
+## 📊 Training Model AI
+
+### Dataset Options
+
+**Opsi A: Mendeley (Classification, Recommended)**
+```
+https://data.mendeley.com/datasets/424y96m6sw/1
+```
+- 4.728 gambar resolusi tinggi
+- 5 kelas: Immature → Mentah, Partially Ripe → Kurang Matang, Fully Ripe → Matang, Overripe → Terlalu Matang, Decayed → Busuk
+- Sudah format classification (folder per kelas)
+
+**Opsi B: Roboflow YOLO → Classification**
+```
+https://universe.roboflow.com/achmad-fahri-x6r0k/oil-palm-fruit-ripeness-7r3zr
+```
+- 4.160 gambar + bounding box
+- Download format YOLOv8, convert via `convert_yolo_to_classification.py`
+
+**Opsi C: Synthetic (Testing Pipeline)**
+```powershell
+python generate_synthetic_dataset.py  # 250 images, pattern-based
+```
+
+### Training Steps
+
+```powershell
+# 1. Download dataset (Opsi A)
+#    Kunjungi link Mendeley, download ZIP, extract
+
+# 2. Organize ke struktur 5 folder:
+#    dataset/mentah/  dataset/kurang_matang/  dataset/matang/
+#    dataset/terlalu_matang/  dataset/busuk/
+
+# 3. Install dependencies
+pip install -r requirements-training.txt
+
+# 4. Train (10-30 menit)
+python train_model_tbs.py
+
+# 5. Output model:
+#    backend/model_output/model_tbs.tflite (2.7 MB, Android)
+#    backend/model_output/model_tbs_final.keras (11 MB, Python)
+#    backend/model_output/labels.txt
+```
+
+### YOLO → Classification Conversion
+
+```powershell
+# Download Roboflow dataset as YOLOv8 → extract ke raw_data/
+python convert_yolo_to_classification.py --input raw_data --output dataset --crop
+```
+
+### Expected Results
+
+| Dataset Size | Training Time | Expected Accuracy |
+|--------------|---------------|-------------------|
+| 250 img (synthetic) | 15 min | ~100% (synthetic) |
+| 500-1000 img | 15-20 min | 80-90% |
+| 1000+ img | 20-30 min | 90-95% |
 
 ---
 
 ## ⚡ Catatan Penting
 
-- **Model asli belum ada** — harus training dulu dengan `train_model_tbs.py` (butuh dataset foto TBS 5 kategori), atau pakai `generate_dummy_model.py` untuk testing UI
+- **Model sintetis (bawaan)** bisa dipakai untuk testing UI, tapi hasil deteksi random. Training dengan dataset asli untuk akurasi production.
 - **Kamera hanya jalan di HTTPS/localhost** — browser blokir `getUserMedia` di plain HTTP selain localhost
 - **Port bisa diganti**: backend di `main.py` baris terakhir, frontend di `vite.config.js`
 - **GPS opsional**: API sudah support `latitude`/`longitude` params. Frontend bisa tambah `navigator.geolocation` di `DeteksiBaru.jsx`
+- **VSCode Launch Config**: Buat file `.vscode/launch.json` untuk run training via F5 (lihat `QUICKSTART.md`)
 
 ---
 

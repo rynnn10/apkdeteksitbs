@@ -35,6 +35,7 @@ $ROOT = $PSScriptRoot
 $FRONTEND = Join-Path $ROOT "frontend"
 $APP_ASSETS = Join-Path $ROOT "app\src\main\assets"
 $APP_ID = "com.tbsdeteksi.kelapa.sawit"
+$ACTIVITY_CLASS = "com.tbsdeteksi.MainActivity"
 $DEBUG_APP_ID = "$APP_ID.debug"
 
 Write-Host ""
@@ -146,7 +147,8 @@ if ($installResult -match "Success") {
 if (-not $NoLaunch) {
     Write-Host ""
     Write-Host "Launching app..." -ForegroundColor Cyan
-    & $adbCmd shell am start -n "$APP_ID/.MainActivity" 2>&1 | Out-Null
+    Start-Sleep -Seconds 2
+    & $adbCmd shell am start -n "$APP_ID/$ACTIVITY_CLASS" 2>&1 | Out-Null
     Write-Host "App started" -ForegroundColor Green
 }
 

@@ -1,7 +1,10 @@
 ﻿import React, { useState, useRef, useCallback, useEffect } from "react";
 import { predictOnDevice, isOnDeviceReady } from "../ondevice/model_loader";
 
-const API_BASE = "";
+// In APK (file://), no proxy available — backend reachable via LAN IP
+// Default: try on-device inference first, fallback dummy
+const isAndroidWebView = typeof window !== "undefined" && window.location.protocol === "file:";
+const API_BASE = isAndroidWebView ? "" : "";
 
 export default function DeteksiBaru({ onHasil }) {
   const [image, setImage] = useState(null);
@@ -16,6 +19,11 @@ export default function DeteksiBaru({ onHasil }) {
 
   useEffect(() => {
     (async () => {
+      if (isAndroidWebView) {
+        const ready = await isOnDeviceReady();
+        setMode(ready ? "ondevice" : "dummy");
+        return;
+      }
       try {
         const res = await fetch("/api");
         if (res.ok) { setMode("online"); return; }
