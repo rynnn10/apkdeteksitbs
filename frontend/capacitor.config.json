@@ -1,0 +1,23 @@
+{
+  "appId": "com.tbs.deteksi",
+  "appName": "TBS Deteksi",
+  "bundledWebRuntime": false,
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": [
+      "*"
+    ]
+  },
+  "plugins": {
+    "Camera": {
+      "permissions": ["CAMERA", "RECORD_AUDIO"]
+    },
+    "Filesystem": {
+      "permissions": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+    },
+    "Geolocation": {
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    }
+  }
+}
