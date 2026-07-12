@@ -256,8 +256,10 @@ function Uninstall-OldApp {
         & adb uninstall "$PackageName" 2>&1 | Out-Null
         & adb uninstall "$DEBUG_APP_ID" 2>&1 | Out-Null
     } else {
-        & adb -s $TargetDeviceId uninstall "$PackageName" 2>&1 | Out-Null
-        & adb -s $TargetDeviceId uninstall "$DEBUG_APP_ID" 2>&1 | Out-Null
+        $cmd1 = "adb -s `"$TargetDeviceId`" uninstall `"$PackageName`""
+        $cmd2 = "adb -s `"$TargetDeviceId`" uninstall `"$DEBUG_APP_ID`""
+        $null = cmd /c $cmd1 2>&1
+        $null = cmd /c $cmd2 2>&1
     }
     Write-Host "   Selesai." -ForegroundColor Green
 }
