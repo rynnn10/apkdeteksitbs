@@ -419,7 +419,7 @@ $finalDeviceId = $DeviceId
 # Cek dulu apakah sudah ada device terhubung via ADB (USB atau sebelumnya)
 Write-Host "   Memeriksa perangkat yang sudah terhubung via ADB..." -ForegroundColor Cyan
 $existingDevices = & adb devices
-$existingDeviceLines = $existingDevices | Select-String "device$" | ForEach-Object { $_ -replace '\s+device', '' } | Where-Object { $_ -ne "List of devices attached" -and $_ -ne "" }
+$existingDeviceLines = $existingDevices | Select-String "\s+device$" | ForEach-Object { $_ -replace '\s+device', '' } | Where-Object { $_ -ne "List of devices attached" -and $_ -ne "" -and $_ -notmatch "\b[a-zA-Z]+-" -and $_ -notmatch "_adb-tls-connect" } | ForEach-Object { $_.Trim() }
 if ($existingDeviceLines.Count -gt 0) {
     Write-Host ("   Ditemukan perangkat yang sudah terhubung: " + ($existingDeviceLines -join ", ")) -ForegroundColor Green
     if ([string]::IsNullOrWhiteSpace($finalDeviceId)) {
