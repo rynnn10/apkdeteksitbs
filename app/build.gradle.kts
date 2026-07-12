@@ -12,12 +12,12 @@ android {
     applicationId = "com.tbsdeteksi.kelapa.sawit"
     minSdk = 24
     targetSdk = 36
-    versionCode = 7
-    versionName = "1.0.6"
+    versionCode = 8
+    versionName = "1.5.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     buildConfigField("String", "BUILD_TIMESTAMP", "\"${System.currentTimeMillis()}\"")
-    buildConfigField("String", "BUILD_DATE", "\"2026-07-12 11:15:10 UTC\"")
+    buildConfigField("String", "BUILD_DATE", "\"2026-07-12 23:30:00 UTC\"")
   }
 
   signingConfigs {
