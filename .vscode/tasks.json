@@ -4,7 +4,7 @@
     {
       "label": "Build APK (Gradle)",
       "type": "shell",
-      "command": "pwsh",
+      "command": "powershell",
       "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/run.ps1", "-SkipBuild"],
       "group": {
         "kind": "build",
@@ -20,7 +20,7 @@
     {
       "label": "Build & Install APK",
       "type": "shell",
-      "command": "pwsh",
+      "command": "powershell",
       "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/run.ps1"],
       "group": "build",
       "presentation": {
@@ -47,7 +47,7 @@
     {
       "label": "Reinstall APK",
       "type": "shell",
-      "command": "pwsh",
+      "command": "powershell",
       "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/run.ps1", "-Reinstall"],
       "group": "build",
       "presentation": {
