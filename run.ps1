@@ -336,10 +336,10 @@ function Install-APK {
     Write-Host ""
     Write-Host "[4/4] Install APK..." -ForegroundColor Cyan
 
-    $apk = "$ROOT\app\build\outputs\apk\debug\app-debug.apk"
+    $apk = "`"$ROOT\app\build\outputs\apk\debug\app-debug.apk`""
     
     Write-Host "  Installing APK..." -ForegroundColor Gray
-    $process = Start-Process -FilePath "adb" -ArgumentList @("install", "-r", $apk) -Wait -NoNewWindow -PassThru
+    $process = Start-Process -FilePath "adb" -ArgumentList "install", "-r", $apk -Wait -NoNewWindow -PassThru
     
     if ($process.ExitCode -eq 0) {
         Write-Host "  Install OK" -ForegroundColor Green
