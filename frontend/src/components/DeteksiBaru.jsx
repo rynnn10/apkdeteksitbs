@@ -71,7 +71,7 @@ export default function DeteksiBaru({ onHasil }) {
       const formData = new FormData();
       formData.append('file', image);
 
-      const res = await fetch(`${API_BASE}/predict`, { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE}/api/predict`, { method: 'POST', body: formData });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
       onHasil(data, preview);

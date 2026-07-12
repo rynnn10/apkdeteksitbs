@@ -18,7 +18,7 @@ export default function Riwayat() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch('/history?limit=50');
+      const res = await fetch('/api/history?limit=50');
       const data = await res.json();
       setHistory(data);
     } catch (e) {

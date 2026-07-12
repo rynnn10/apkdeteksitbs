@@ -6,10 +6,7 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/predict': 'http://localhost:8000',
-      '/history': 'http://localhost:8000',
-      '/stats': 'http://localhost:8000',
-      '/kelas-info': 'http://localhost:8000',
+      '/api': 'http://localhost:8000',
       '/uploads': 'http://localhost:8000',
     },
   },

@@ -28,7 +28,7 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/stats');
+      const res = await fetch('/api/stats');
       const data = await res.json();
       setStats(data);
     } catch (e) {

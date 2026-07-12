@@ -15,13 +15,16 @@ venv/
 backend/uploads/*
 !backend/uploads/.gitkeep
 
+# Frontend build output
+frontend/dist/
+
 # Node
 node_modules/
-dist/
 
-# IDE
+# IDE — kecuali tasks.json yang di-commit
 .idea/
-.vscode/
+.vscode/*
+!.vscode/tasks.json
 *.swp
 
 # OS
