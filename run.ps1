@@ -341,20 +341,22 @@ function Install-APK {
     Write-Host ""
     Write-Host "[4/4] Install APK..." -ForegroundColor Cyan
 
-    $adbCmd = @("adb")
-    if ($TargetDeviceId -and $TargetDeviceId -ne "usb") {
-        $adbCmd += @("-s", $TargetDeviceId)
-        Write-Host "  Device: $TargetDeviceId" -ForegroundColor Gray
-    }
-
     $apk = "$ROOT\app\build\outputs\apk\debug\app-debug.apk"
-    $installResult = & $adbCmd install -r $apk 2>&1
-
-    if ($installResult -match "Success") {
+    
+    if ($TargetDeviceId -and $TargetDeviceId -ne "usb") {
+        Write-Host "  Device: $TargetDeviceId" -ForegroundColor Gray
+        $cmd = "adb -s `"$TargetDeviceId`" install -r `"$apk`""
+    } else {
+        $cmd = "adb install -r `"$apk`""
+    }
+    
+    $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmd" -Wait -PassThru -NoNewWindow
+    
+    if ($process.ExitCode -eq 0) {
         Write-Host "  Install OK" -ForegroundColor Green
         return $true
     } else {
-        Write-Host "  Install result: $installResult" -ForegroundColor Yellow
+        Write-Host "  Install ERROR" -ForegroundColor Yellow
         return $false
     }
 }
