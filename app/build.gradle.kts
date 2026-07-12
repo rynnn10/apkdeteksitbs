@@ -22,15 +22,15 @@ android {
   signingConfigs {
     create("release") {
       // Release signing: set env KEYSTORE_PATH, STORE_PASSWORD, KEY_PASSWORD
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: project.findProperty("KEYSTORE_PATH")?.toString()
-      val storePassword = System.getenv("STORE_PASSWORD") ?: project.findProperty("STORE_PASSWORD")?.toString()
-      val keyPassword = System.getenv("KEY_PASSWORD") ?: project.findProperty("KEY_PASSWORD")?.toString()
+            val ksPath = System.getenv("KEYSTORE_PATH") ?: project.findProperty("KEYSTORE_PATH")?.toString()
+      val ksStorePass = System.getenv("STORE_PASSWORD") ?: project.findProperty("STORE_PASSWORD")?.toString()
+      val ksKeyPass = System.getenv("KEY_PASSWORD") ?: project.findProperty("KEY_PASSWORD")?.toString()
 
-      if (keystorePath != null && storePassword != null && keyPassword != null) {
-        storeFile = file(keystorePath)
-        storePassword = storePassword
+      if (ksPath != null && ksStorePass != null && ksKeyPass != null) {
+        storeFile = file(ksPath)
+        storePassword = ksStorePass
         keyAlias = "upload"
-        keyPassword = keyPassword
+        keyPassword = ksKeyPass
       } else {
         logger.warn("Release signing not configured. Set KEYSTORE_PATH, STORE_PASSWORD, KEY_PASSWORD.")
       }
