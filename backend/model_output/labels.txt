@@ -1,0 +1,5 @@
+mentah
+kurang_matang
+matang
+terlalu_matang
+busuk
