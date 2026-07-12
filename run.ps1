@@ -338,13 +338,8 @@ function Install-APK {
 
     $apk = "$ROOT\app\build\outputs\apk\debug\app-debug.apk"
     
-    if ($TargetDeviceId -and $TargetDeviceId -ne "usb" -and $TargetDeviceId -notmatch "_tcp$") {
-        Write-Host "  Device: $TargetDeviceId" -ForegroundColor Gray
-        $process = Start-Process -FilePath "adb" -ArgumentList @("-s", $TargetDeviceId, "install", "-r", $apk) -Wait -NoNewWindow -PassThru
-    } else {
-        Write-Host "  Installing..." -ForegroundColor Gray
-        $process = Start-Process -FilePath "adb" -ArgumentList @("install", "-r", $apk) -Wait -NoNewWindow -PassThru
-    }
+    Write-Host "  Installing APK..." -ForegroundColor Gray
+    $process = Start-Process -FilePath "adb" -ArgumentList @("install", "-r", $apk) -Wait -NoNewWindow -PassThru
     
     if ($process.ExitCode -eq 0) {
         Write-Host "  Install OK" -ForegroundColor Green
@@ -365,11 +360,7 @@ function Start-AppOnDevice {
     Write-Host "Membuka aplikasi di HP..." -ForegroundColor Cyan
 
     try {
-        if ([string]::IsNullOrWhiteSpace($TargetDeviceId) -or $TargetDeviceId -eq "usb" -or $TargetDeviceId -match "_tcp$") {
-            Start-Process -FilePath "adb" -ArgumentList "shell", "am", "start", "-n", "$PackageName/$ACTIVITY_CLASS" -WindowStyle Hidden
-        } else {
-            Start-Process -FilePath "adb" -ArgumentList "-s", $TargetDeviceId, "shell", "am", "start", "-n", "$PackageName/$ACTIVITY_CLASS" -WindowStyle Hidden
-        }
+        Start-Process -FilePath "adb" -ArgumentList "shell", "am", "start", "-n", "$PackageName/$ACTIVITY_CLASS" -WindowStyle Hidden
         Write-Host "   Aplikasi terbuka di HP!" -ForegroundColor Green
         [System.Console]::Beep(1000, 500)
     } catch {
