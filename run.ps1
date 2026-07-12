@@ -246,6 +246,12 @@ function Stop-GradleDaemon {
 function Uninstall-OldApp {
     param([string]$TargetDeviceId)
 
+    # Skip uninstall for mDNS device IDs (they cause quoting issues)
+    if ($TargetDeviceId -match "_tcp$") {
+        Write-Host "   (mDNS device - skip uninstall, install -r akan auto-replace)" -ForegroundColor Yellow
+        return
+    }
+
     Write-Host ""
     Write-Host "Menghapus versi aplikasi lama di HP..." -ForegroundColor Cyan
     Write-Host ('   Package: ' + $PackageName) -ForegroundColor Gray
@@ -256,10 +262,8 @@ function Uninstall-OldApp {
         & adb uninstall "$PackageName" 2>&1 | Out-Null
         & adb uninstall "$DEBUG_APP_ID" 2>&1 | Out-Null
     } else {
-        $cmd1 = "adb -s `"$TargetDeviceId`" uninstall `"$PackageName`""
-        $cmd2 = "adb -s `"$TargetDeviceId`" uninstall `"$DEBUG_APP_ID`""
-        $null = cmd /c $cmd1 2>&1
-        $null = cmd /c $cmd2 2>&1
+        & adb -s $TargetDeviceId uninstall "$PackageName" 2>&1 | Out-Null
+        & adb -s $TargetDeviceId uninstall "$DEBUG_APP_ID" 2>&1 | Out-Null
     }
     Write-Host "   Selesai." -ForegroundColor Green
 }
@@ -345,14 +349,13 @@ function Install-APK {
 
     $apk = "$ROOT\app\build\outputs\apk\debug\app-debug.apk"
     
-    if ($TargetDeviceId -and $TargetDeviceId -ne "usb") {
+    if ($TargetDeviceId -and $TargetDeviceId -ne "usb" -and $TargetDeviceId -notmatch "_tcp$") {
         Write-Host "  Device: $TargetDeviceId" -ForegroundColor Gray
-        $cmd = "adb -s `"$TargetDeviceId`" install -r `"$apk`""
+        $process = Start-Process -FilePath "adb" -ArgumentList @("-s", $TargetDeviceId, "install", "-r", $apk) -Wait -NoNewWindow -PassThru
     } else {
-        $cmd = "adb install -r `"$apk`""
+        Write-Host "  Installing..." -ForegroundColor Gray
+        $process = Start-Process -FilePath "adb" -ArgumentList @("install", "-r", $apk) -Wait -NoNewWindow -PassThru
     }
-    
-    $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmd" -Wait -PassThru -NoNewWindow
     
     if ($process.ExitCode -eq 0) {
         Write-Host "  Install OK" -ForegroundColor Green
@@ -373,7 +376,7 @@ function Start-AppOnDevice {
     Write-Host "Membuka aplikasi di HP..." -ForegroundColor Cyan
 
     try {
-        if ([string]::IsNullOrWhiteSpace($TargetDeviceId) -or $TargetDeviceId -eq "usb") {
+        if ([string]::IsNullOrWhiteSpace($TargetDeviceId) -or $TargetDeviceId -eq "usb" -or $TargetDeviceId -match "_tcp$") {
             Start-Process -FilePath "adb" -ArgumentList "shell", "am", "start", "-n", "$PackageName/$ACTIVITY_CLASS" -WindowStyle Hidden
         } else {
             Start-Process -FilePath "adb" -ArgumentList "-s", $TargetDeviceId, "shell", "am", "start", "-n", "$PackageName/$ACTIVITY_CLASS" -WindowStyle Hidden
