@@ -85,6 +85,12 @@ class MixupGenerator(keras.utils.Sequence):
         x1, y1 = self.gen[idx]
         x2, y2 = self.gen[np.random.randint(0, len(self.gen))]
         
+        # Handle partial batch at end: ensure both batches same size
+        b = x1.shape[0]
+        if x2.shape[0] != b:
+            x2 = x2[:b]
+            y2 = y2[:b]
+        
         lam = np.random.beta(self.alpha, self.alpha)
         x = lam * x1 + (1 - lam) * x2
         y = lam * y1 + (1 - lam) * y2
