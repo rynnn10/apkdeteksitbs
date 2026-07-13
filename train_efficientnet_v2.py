@@ -182,7 +182,7 @@ def build_model(n=5):
     model = keras.Model(inp, out)
     model.compile(
         optimizer=keras.optimizers.AdamW(learning_rate=LR_HEAD, weight_decay=1e-4, clipnorm=CLIPNORM),
-        loss=focal_loss(gamma=FOCAL_GAMMA),
+        loss=focal_loss,
         metrics=['accuracy', keras.metrics.TopKCategoricalAccuracy(k=2, name='top2_acc')]
     )
     print(f"  Params: {model.count_params():,}\n")
@@ -218,7 +218,7 @@ def fine_tune(model, base, tr, vl):
     
     model.compile(
         optimizer=keras.optimizers.AdamW(learning_rate=LR_FINE, weight_decay=1e-5, clipnorm=CLIPNORM),
-        loss=focal_loss(gamma=FOCAL_GAMMA),
+        loss=focal_loss,
         metrics=['accuracy', keras.metrics.TopKCategoricalAccuracy(k=2, name='top2_acc')]
     )
     print(f"  Trainable: {sum(tf.size(w).numpy() for w in model.trainable_weights):,}")
