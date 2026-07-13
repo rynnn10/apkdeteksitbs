@@ -86,7 +86,10 @@ class MixupGenerator(keras.utils.Sequence):
         x2, y2 = self.gen[np.random.randint(0, len(self.gen))]
         
         # Handle partial batch at end: ensure both batches same size
-        b = x1.shape[0]
+        b = min(x1.shape[0], x2.shape[0])
+        if x1.shape[0] != b:
+            x1 = x1[:b]
+            y1 = y1[:b]
         if x2.shape[0] != b:
             x2 = x2[:b]
             y2 = y2[:b]
