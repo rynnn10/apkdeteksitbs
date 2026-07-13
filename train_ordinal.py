@@ -176,16 +176,33 @@ def build_model():
     print(f"  Params: {model.count_params():,}")
     return model, base
 
+# === ORDINAL VALIDATION WRAPPER ===
+class OrdinalValGenerator(keras.utils.Sequence):
+    def __init__(self, base_gen, num_classes):
+        self.gen = base_gen
+        self.num_classes = num_classes
+    
+    def __len__(self):
+        return len(self.gen)
+    
+    def __getitem__(self, idx):
+        x, y = self.gen[idx]
+        if y.ndim == 2 and y.shape[1] == self.num_classes:
+            y = np.argmax(y, axis=1)
+        return x, to_ordinal_targets(y, self.num_classes)
+    
+    def on_epoch_end(self):
+        self.gen.on_epoch_end()
+    
+    def reset(self):
+        self.gen.reset()
+
+
 # === PHASE 1: HEAD TRAINING ===
 def train_head(model, train_gen, val_gen, class_weights):
     print(f"\n[4/7] Phase 1: Head ({EPOCHS_HEAD} ep)...")
     train_mix = MixupGenerator(train_gen, alpha=MIXUP_ALPHA)
-    
-    # Convert val targets to ordinal
-    val_idx = val_gen.classes
-    val_ordinal = to_ordinal_targets(val_idx, NUM_CLASSES).numpy()
-    val_data = (val_gen[0][0], val_ordinal)  # Use first batch for validation monitoring
-    # Actually use full validation generator with custom steps
+    val_ordinal = OrdinalValGenerator(val_gen, NUM_CLASSES)
     
     cb = [
         keras.callbacks.EarlyStopping('val_loss', patience=12, restore_best_weights=True, verbose=1),
@@ -195,36 +212,8 @@ def train_head(model, train_gen, val_gen, class_weights):
         keras.callbacks.CSVLogger(os.path.join(OUTPUT_DIR,'head_log.csv'))
     ]
     
-    # Custom validation using full val generator
-    class OrdinalValCallback(keras.callbacks.Callback):
-        def __init__(self, val_gen, num_classes):
-            super().__init__()
-            self.val_gen = val_gen
-            self.num_classes = num_classes
-        def on_epoch_end(self, epoch, logs=None):
-            self.val_gen.reset()
-            preds, trues = [], []
-            for _ in range(len(self.val_gen)):
-                xb, yb = next(self.val_gen)
-                p = self.model.predict(xb, verbose=0)
-                preds.append(p)
-                trues.append(yb)
-            preds = np.vstack(preds)
-            trues = np.vstack(trues)
-            # Convert ordinal preds to class index
-            pred_idx = (preds > 0).sum(axis=1)
-            true_idx = np.argmax(trues, axis=1) if trues.ndim > 1 else trues
-            # Compute MAE and accuracy
-            mae = mean_absolute_error(true_idx, pred_idx)
-            acc = (pred_idx == true_idx).mean()
-            logs = logs or {}
-            logs['val_mae'] = mae
-            logs['val_ordinal_acc'] = acc
-            print(f"  val_mae: {mae:.4f} - val_ordinal_acc: {acc:.4f}")
-    
-    # We'll just use the standard fit with a wrapper
     history = model.fit(
-        train_mix, epochs=EPOCHS_HEAD, validation_data=val_gen,
+        train_mix, epochs=EPOCHS_HEAD, validation_data=val_ordinal,
         callbacks=cb, class_weight=class_weights, verbose=1
     )
     return history
@@ -249,6 +238,7 @@ def fine_tune(model, base, train_gen, val_gen, class_weights):
     )
     
     train_mix = MixupGenerator(train_gen, alpha=MIXUP_ALPHA/2)
+    val_ordinal = OrdinalValGenerator(val_gen, NUM_CLASSES)
     
     cb = [
         keras.callbacks.EarlyStopping('val_loss', patience=10, restore_best_weights=True, verbose=1),
@@ -259,17 +249,17 @@ def fine_tune(model, base, train_gen, val_gen, class_weights):
     ]
     
     return model.fit(
-        train_mix, epochs=EPOCHS_FINE, validation_data=val_gen,
+        train_mix, epochs=EPOCHS_FINE, validation_data=val_ordinal,
         callbacks=cb, class_weight=class_weights, verbose=1
     )
 
 # === EVALUATE ===
 def evaluate(model, val_gen):
     print("\n[6/7] Evaluating...")
-    val_gen.reset()
+    val_ordinal = OrdinalValGenerator(val_gen, NUM_CLASSES)
     preds, trues = [], []
-    for _ in range(len(val_gen)):
-        xb, yb = next(val_gen)
+    for _ in range(len(val_ordinal)):
+        xb, yb = val_ordinal[_]
         p = model.predict(xb, verbose=0)
         preds.append(p)
         trues.append(yb)
@@ -279,7 +269,7 @@ def evaluate(model, val_gen):
     # Convert ordinal logits to class predictions
     probs = 1 / (1 + np.exp(-preds))  # sigmoid
     pred_idx = (probs > 0.5).sum(axis=1)
-    true_idx = np.argmax(trues, axis=1)
+    true_idx = (trues > 0.5).sum(axis=1)  # ordinal targets back to class
     
     mae = mean_absolute_error(true_idx, pred_idx)
     acc = (pred_idx == true_idx).mean()
