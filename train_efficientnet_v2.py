@@ -151,10 +151,12 @@ def create_generators():
         fill_mode='reflect')
     val = ImageDataGenerator(rescale=1./255, validation_split=VAL_SPLIT)
     
-    tr = train.flow_from_directory(DATASET_DIR, IMG_SIZE, BATCH_SIZE,
-        'categorical', subset='training', shuffle=True, classes=CLASS_NAMES)
-    vl = val.flow_from_directory(DATASET_DIR, IMG_SIZE, BATCH_SIZE,
-        'categorical', subset='validation', shuffle=False, classes=CLASS_NAMES)
+    tr = train.flow_from_directory(
+        directory=DATASET_DIR, target_size=IMG_SIZE, batch_size=BATCH_SIZE,
+        class_mode='categorical', subset='training', shuffle=True, classes=CLASS_NAMES)
+    vl = val.flow_from_directory(
+        directory=DATASET_DIR, target_size=IMG_SIZE, batch_size=BATCH_SIZE,
+        class_mode='categorical', subset='validation', shuffle=False, classes=CLASS_NAMES)
     
     print(f"  Train: {tr.samples} | Val: {vl.samples}\n")
     return tr, vl
