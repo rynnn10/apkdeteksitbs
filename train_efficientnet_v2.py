@@ -241,10 +241,10 @@ def fine_tune(model, base, tr, vl):
 # === EVALUATE ===
 def evaluate(model, vl):
     print("\n[6/7] Evaluating...")
-    r = model.evaluate(vl, 0)
+    r = model.evaluate(vl, verbose=0)
     print(f"  Loss: {r[0]:.4f} | Acc: {r[1]:.4f} | Top-2: {r[2]:.4f}\n")
     vl.reset()
-    p = model.predict(vl, 0); yp, yt = np.argmax(p,1), vl.classes
+    p = model.predict(vl, verbose=0); yp, yt = np.argmax(p,1), vl.classes
     from sklearn.metrics import classification_report, confusion_matrix
     print(classification_report(yt, yp, target_names=CLASS_NAMES, digits=4))
     cm = confusion_matrix(yt, yp)
