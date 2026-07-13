@@ -50,15 +50,22 @@ DATASET_DIR = "dataset"
 OUTPUT_DIR = "backend/model_output"
 CLASS_NAMES = ["mentah", "kurang_matang", "matang", "terlalu_matang", "busuk"]
 
-# === FOCAL LOSS ===
-@keras.saving.register_keras_serializable(package="Custom", name="focal_loss")
-def focal_loss(gamma=FOCAL_GAMMA, alpha=None):
-    def loss(y_true, y_pred):
+# === FOCAL LOSS (Keras 3 compatible) ===
+class FocalLoss(keras.losses.Loss):
+    def __init__(self, gamma=2.0, **kwargs):
+        super().__init__(**kwargs)
+        self.gamma = gamma
+    
+    def call(self, y_true, y_pred):
         ce = keras.losses.categorical_crossentropy(y_true, y_pred)
         pt = tf.exp(-ce)
-        focal = (1 - pt) ** gamma * ce
+        focal = (1 - pt) ** self.gamma * ce
         return focal
-    return loss
+    
+    def get_config(self):
+        return {"gamma": self.gamma}
+
+focal_loss = FocalLoss(gamma=FOCAL_GAMMA)
 
 # === MIXUP AUGMENTATION ===
 class MixupGenerator(keras.utils.Sequence):
