@@ -23,3 +23,7 @@ debug.keystore
 !debug.keystore
 dataset/
 *.log
+colab_download_roboflow.py
+dataset_upload.zip
+fine_tune_continue.py
+_*.py
