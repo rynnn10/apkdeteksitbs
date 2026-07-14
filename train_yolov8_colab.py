@@ -89,12 +89,12 @@ print(f"mAP50: {metrics.box.map50:.3f}")
 print(f"mAP50-95: {metrics.box.map:.3f}")
 
 # ============================================================
-# CELL 6: Export to TFLite (for Android)
-# nms=True includes box decoding + NMS in the TFLite graph
-# Without nms=True, raw output needs manual decoding (broken)
+# CELL 6: Export to TFLite/LiteRT (for Android)
+# YOLOv8 >=8.4.83 uses 'litert' format (replaces 'tflite')
+# Output: best_saved_model/best.tflite + best_saved_model/metadata.yaml
 # ============================================================
-model.export(format="tflite", imgsz=640, nms=True)
-print("TFLite exported with NMS!")
+model.export(format="litert", imgsz=640)
+print("TFLite exported via LiteRT!")
 
 # ============================================================
 # CELL 7: Save labels.txt for inference
@@ -126,9 +126,12 @@ if tflite_files:
     files.download(tflite_files[0])
 else:
     try:
-        files.download("runs/detect/runs/train/tbs_yolov8/weights/best.tflite")
+        files.download("runs/detect/runs/train/tbs_yolov8/weights/best_saved_model/best.tflite")
     except:
-        print("TFLite file not found, skipping.")
+        try:
+            files.download("runs/detect/runs/train/tbs_yolov8/weights/best.tflite")
+        except:
+            print("TFLite file not found, skipping.")
 
 files.download("labels.txt")
 print("Done! Place best.pt in backend/model_output/yolov8_tbs.pt")
