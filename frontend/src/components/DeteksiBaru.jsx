@@ -1,6 +1,7 @@
 ﻿import React, { useState, useRef, useCallback, useEffect } from "react";
 import { predictOnDevice, isOnDeviceReady } from "../ondevice/model_loader";
 
+// 2026-07-13 14:35 | v1.5.1 | AI badge: ONDEVICE/Server/Offline/Demo + pulse animation + loading state
 // In APK (file://), no proxy available — backend reachable via LAN IP
 // Default: try on-device inference first, fallback dummy
 const isAndroidWebView = typeof window !== "undefined" && window.location.protocol === "file:";
@@ -10,9 +11,10 @@ export default function DeteksiBaru({ onHasil }) {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState("online");
+  const [mode, setMode] = useState("loading");
   const [showCamera, setShowCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
+  const [modelLoadError, setModelLoadError] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -20,18 +22,32 @@ export default function DeteksiBaru({ onHasil }) {
   useEffect(() => {
     (async () => {
       if (isAndroidWebView) {
-        const ready = await isOnDeviceReady();
-        setMode(ready ? "ondevice" : "dummy");
+        try {
+          const ready = await isOnDeviceReady();
+          setMode(ready ? "ondevice" : "offline");
+        } catch {
+          setMode("offline");
+        }
         return;
       }
       try {
         const res = await fetch("/api");
-        if (res.ok) { setMode("online"); return; }
+        if (res.ok) { setMode("server"); return; }
       } catch {}
       const ready = await isOnDeviceReady();
-      setMode(ready ? "ondevice" : "dummy");
+      setMode(ready ? "ondevice" : "offline");
     })();
   }, []);
+
+  const getBadgeConfig = () => {
+    switch (mode) {
+      case "server": return { label: "SERVER", className: "server", tip: "Menghubungkan ke backend FastAPI" };
+      case "ondevice": return { label: "ONDEVICE", className: "ondevice", tip: "Model AI berjalan di HP (TF.js)" };
+      case "offline": return { label: "OFFLINE", className: "offline", tip: "Model tidak ditemukan, cek assets/model_tfjs" };
+      case "loading": return { label: "MEMUAT AI...", className: "loading", tip: "Memuat model TensorFlow.js..." };
+      default: return { label: "DEMO", className: "demo", tip: "Mode simulasi acak (model gagal load)" };
+    }
+  };
 
   const handleFile = useCallback((file) => {
     if (!file) return;
@@ -80,7 +96,7 @@ export default function DeteksiBaru({ onHasil }) {
     if (!image) return alert("Pilih atau ambil foto terlebih dahulu!");
     setLoading(true);
     try {
-      if (mode === "online") {
+      if (mode === "server") {
         const formData = new FormData();
         formData.append("file", image);
         const res = await fetch(`${API_BASE}/api/predict`, { method: "POST", body: formData });
@@ -91,24 +107,21 @@ export default function DeteksiBaru({ onHasil }) {
         onHasil(await predictOnDevice(img), preview);
       }
     } catch (err) {
-      if (mode === "online") {
+      if (mode === "server") {
         try { const img = await blobToImage(image); onHasil(await predictOnDevice(img), preview); } catch {}
       }
       alert("Gagal deteksi: " + err.message);
     } finally { setLoading(false); }
   };
 
-  const modeBadge = () => {
-    if (mode === "online") return { text: "Server", color: "#16A34A" };
-    if (mode === "ondevice") return { text: "Offline", color: "#D97706" };
-    return { text: "Demo", color: "#6B7280" };
-  };
+  const badge = getBadgeConfig();
 
   return (
     <div>
       <div style={{ textAlign: "right", marginBottom: 8 }}>
-        <span style={{ background: modeBadge().color, color: "#fff", padding: "2px 10px", borderRadius: 10, fontSize: "0.7rem", fontWeight: 600 }}>
-          {modeBadge().text.toUpperCase()}
+        <span className={`ai-badge ${badge.className} ai-status-tooltip`} data-tip={badge.tip}>
+          <span className="dot" />
+          {badge.label}
         </span>
       </div>
 

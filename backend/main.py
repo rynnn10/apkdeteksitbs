@@ -1,12 +1,12 @@
 """
 TBS Deteksi Kelapa Sawit — Fullstack App
 =========================================
-  API: /api/predict | /api/history | /api/stats | /api/kelas-info
+  API: /api/predict | /api/history | /api/stats | /api/kelas-info | /api/version
   SPA: / (frontend dari ../frontend/dist/)
   Gambar: /uploads/
 
-Deployment mode: python main.py          (prod — single server, serve frontend)
-Dev mode:        python main.py --dev     (API only, frontend via npm run dev)
+Now with YOLOv8 object detection (multiple TBS per image).
+Updated: 2026-07-14 15:30 UTC | v2.0.0
 """
 import os
 import sys
@@ -19,13 +19,15 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 import io
 
-from model_handler import get_classifier
+from model_handler import get_detector
 from database import init_db, save_detection, get_all_history, get_stats
 
-# --dev flag: API only, no frontend serving
+APP_VERSION = "2.0.0"
+BUILD_DATE = "2026-07-14 15:30 UTC"
+
 DEV_MODE = "--dev" in sys.argv
 
-app = FastAPI(title="TBS Deteksi Kelapa Sawit", version="1.0.0")
+app = FastAPI(title="TBS Deteksi Kelapa Sawit", version=APP_VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,17 +44,17 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 def startup():
     init_db()
     try:
-        get_classifier()
-        print("[OK] Model loaded")
+        get_detector()
+        print("[OK] Detector loaded")
     except Exception as e:
-        print(f"[WARN] Model not loaded: {e}")
+        print(f"[WARN] Detector not loaded: {e}")
 
     if DEV_MODE:
-        print("[DEV] Running in dev mode — frontend served separately (npm run dev)")
+        print("[DEV] Running in dev mode")
     elif os.path.isdir(FRONTEND_DIR):
         print(f"[OK] Frontend static: {os.path.abspath(FRONTEND_DIR)}")
     else:
-        print(f"[WARN] No frontend dist/ — run build_frontend.ps1 or npm run build")
+        print(f"[WARN] No frontend dist/ — run npm run build")
 
 
 # ── API Endpoints ────────────────────────────────────────
@@ -62,9 +64,13 @@ def kelas_info():
     from model_handler import KELAS_INFO
     return KELAS_INFO
 
+@app.get("/api/version")
+def version():
+    return {"app": "TBS Deteksi Kelapa Sawit", "version": APP_VERSION, "build_date": BUILD_DATE}
+
 @app.get("/api")
 def api_root():
-    return {"app": "TBS Deteksi Kelapa Sawit", "mode": "dev" if DEV_MODE else "prod"}
+    return {"app": "TBS Deteksi Kelapa Sawit", "version": APP_VERSION, "mode": "dev" if DEV_MODE else "prod"}
 
 @app.post("/api/predict")
 async def predict(
@@ -75,26 +81,33 @@ async def predict(
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-    classifier = get_classifier()
-    result = classifier.predict(image)
+    detector = get_detector()
+    detections, img_w, img_h = detector.predict(image)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    img_filename = f"{ts}_{result['kelas_pred']}.jpg"
-    img_path = os.path.join(UPLOAD_DIR, img_filename)
-    image.save(img_path, "JPEG")
+
+    for det in detections:
+        img_filename = f"{ts}_{det['kelas_pred']}.jpg"
+        img_path = os.path.join(UPLOAD_DIR, img_filename)
+        image.save(img_path, "JPEG")
+        det["image_url"] = f"/uploads/{img_filename}"
 
     det_id = save_detection(
-        kelas=result["kelas_pred"],
-        confidence=result["confidence"],
-        rekomendasi=result["rekomendasi"],
-        all_scores=result["all_scores"],
-        image_path=img_path,
+        kelas="|".join(d["kelas_pred"] for d in detections),
+        confidence=max(d["confidence"] for d in detections),
+        rekomendasi="; ".join(d["rekomendasi"] for d in detections),
+        all_scores={"detections": detections},
+        image_path=img_path if detections else None,
         latitude=latitude, longitude=longitude,
     )
 
-    result["id"] = det_id
-    result["image_url"] = f"/uploads/{img_filename}"
-    return result
+    return {
+        "detections": detections,
+        "image_width": img_w,
+        "image_height": img_h,
+        "detection_count": len(detections),
+        "id": det_id,
+    }
 
 @app.get("/api/history")
 def history(limit: int = 50):
@@ -109,19 +122,16 @@ def stats():
 
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-# SPA fallback: serve frontend dist/ jika tersedia
 if not DEV_MODE and os.path.isdir(FRONTEND_DIR):
     from fastapi.responses import HTMLResponse
 
     @app.get("/{full_path:path}")
     async def serve_spa(request: Request, full_path: str):
-        """SPA fallback — all non-API routes → index.html"""
         file_path = os.path.join(FRONTEND_DIR, full_path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
         return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
-    # Mount assets directory
     if os.path.isdir(os.path.join(FRONTEND_DIR, "assets")):
         app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
 
@@ -129,8 +139,9 @@ if not DEV_MODE and os.path.isdir(FRONTEND_DIR):
 if __name__ == "__main__":
     import uvicorn
     print(f"\n{'='*60}")
-    print("  🌴 TBS Deteksi Kelapa Sawit")
-    print(f"  Mode: {'DEV (API only)' if DEV_MODE else 'PROD (fullstack)'}")
+    print("  TBS Deteksi Kelapa Sawit")
+    print(f"  v{APP_VERSION} | {BUILD_DATE}")
+    print(f"  Mode: {'DEV (API only)' if DEV_MODE else 'PROD'}")
     print(f"  URL:  http://localhost:8000")
     print(f"{'='*60}\n")
     uvicorn.run(app, host="0.0.0.0", port=8000)

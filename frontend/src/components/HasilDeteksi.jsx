@@ -1,3 +1,4 @@
+/* Updated: 2026-07-14 15:30 UTC | v2.0.0 | Multi-detection (YOLO) support */
 import React from 'react';
 
 const WARNA_KELAS = {
@@ -8,49 +9,34 @@ const WARNA_KELAS = {
   busuk: '#6B21A8',
 };
 
-export default function HasilDeteksi({ hasil, gambarPreview, onBack }) {
-  if (!hasil) return null;
-
-  const { kelas_pred, kelas_en, confidence, all_scores, rekomendasi, warna, bg_warna, icon, kelas_info } = hasil;
-
-  const sortedScores = Object.entries(all_scores || {})
-    .sort((a, b) => b[1] - a[1]);
-
+function DetectionCard({ det, index }) {
+  const { kelas_pred, kelas_en, confidence, all_scores, rekomendasi, warna, bg_warna, icon } = det;
+  const sortedScores = Object.entries(all_scores || {}).sort((a, b) => b[1] - a[1]);
   const rekomendasiColor = kelas_pred === 'matang' ? '#16A34A'
     : kelas_pred === 'kurang_matang' ? '#D97706'
     : kelas_pred === 'terlalu_matang' ? '#EA580C'
     : '#DC2626';
 
   return (
-    <div>
-      {/* Preview gambar */}
-      {gambarPreview && (
-        <div className="card" style={{ padding: 12 }}>
-          <img src={gambarPreview} alt="TBS" className="preview-img" style={{ width: '100%', maxHeight: 300 }} />
-        </div>
-      )}
-
-      {/* Hasil utama */}
-      <div className="card" style={{ overflow: 'hidden' }}>
-        <div className="result-header" style={{ backgroundColor: bg_warna }}>
-          <div className="result-icon">{icon}</div>
-          <div>
-            <div className="result-label" style={{ color: warna, textTransform: 'capitalize' }}>
-              {kelas_pred.replace('_', ' ')}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{kelas_en}</div>
+    <div className="card" style={{ overflow: 'hidden', marginBottom: 12 }}>
+      <div className="result-header" style={{ backgroundColor: bg_warna }}>
+        <div className="result-icon">{icon}</div>
+        <div>
+          <div className="result-label" style={{ color: warna, textTransform: 'capitalize' }}>
+            #{index + 1} {kelas_pred.replace('_', ' ')}
           </div>
-          <div className="result-confidence" style={{ color: warna }}>
-            {confidence}<span>%</span>
-          </div>
+          <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{kelas_en}</div>
         </div>
-
-        {/* Rekomendasi */}
-        <div className="rekomendasi-box" style={{ borderLeftColor: rekomendasiColor, background: bg_warna }}>
-          💬 {rekomendasi}
+        <div className="result-confidence" style={{ color: warna }}>
+          {confidence}<span>%</span>
         </div>
+      </div>
 
-        {/* Score bars semua kelas */}
+      <div className="rekomendasi-box" style={{ borderLeftColor: rekomendasiColor, background: bg_warna }}>
+        {rekomendasi}
+      </div>
+
+      {sortedScores.length > 0 && (
         <div>
           <h4 style={{ fontSize: '0.9rem', marginBottom: 10, color: '#374151' }}>Confidence Score per Kategori:</h4>
           <div className="score-list">
@@ -61,10 +47,7 @@ export default function HasilDeteksi({ hasil, gambarPreview, onBack }) {
                 <div className="score-item" key={kelas}>
                   <div className="score-label">{kelas.replace('_', ' ')}</div>
                   <div className="score-bar-bg">
-                    <div
-                      className="score-bar-fill"
-                      style={{ width: `${pct}%`, backgroundColor: c }}
-                    >
+                    <div className="score-bar-fill" style={{ width: `${pct}%`, backgroundColor: c }}>
                       {pct > 15 ? `${pct}%` : ''}
                     </div>
                   </div>
@@ -74,36 +57,77 @@ export default function HasilDeteksi({ hasil, gambarPreview, onBack }) {
             })}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* Info semua kelas */}
-        {kelas_info && (
-          <details style={{ marginTop: 16, fontSize: '0.8rem', color: '#6b7280' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 600, marginBottom: 8 }}>
-              📋 Panduan Semua Kategori
-            </summary>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {Object.entries(kelas_info).map(([key, info]) => (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{
-                    width: 14, height: 14, borderRadius: 4,
-                    backgroundColor: info.warna, display: 'inline-block', flexShrink: 0
-                  }} />
-                  <strong style={{ textTransform: 'capitalize' }}>{key.replace('_', ' ')}:</strong>
-                  <span>{info.rekomendasi}</span>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
-      </div>
+function BoundingBoxes({ detections, gambarPreview }) {
+  return (
+    <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+      <img src={gambarPreview} alt="TBS" className="preview-img" style={{ width: '100%', maxHeight: 300 }} />
+      {detections.map((det, i) => {
+        if (!det.bbox) return null;
+        const { x1, y1, x2, y2 } = det.bbox;
+        return (
+          <div key={i} style={{
+            position: 'absolute',
+            left: `${x1 * 100}%`,
+            top: `${y1 * 100}%`,
+            width: `${(x2 - x1) * 100}%`,
+            height: `${(y2 - y1) * 100}%`,
+            border: `2.5px solid ${det.warna || '#16A34A'}`,
+            borderRadius: 4,
+            pointerEvents: 'none',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.5)',
+          }}>
+            <span style={{
+              position: 'absolute', top: -20, left: 0,
+              background: det.warna || '#16A34A', color: '#fff',
+              fontSize: 11, fontWeight: 600, padding: '1px 6px',
+              borderRadius: '3px 3px 3px 0',
+              whiteSpace: 'nowrap',
+              lineHeight: '18px',
+            }}>
+              {det.kelas_pred?.replace('_', ' ')} {det.confidence}%
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-      {/* Tombol kembali & deteksi baru */}
+export default function HasilDeteksi({ hasil, gambarPreview, onBack }) {
+  if (!hasil) return null;
+
+  const detections = hasil.detections || [];
+  const total = detections.length;
+
+  return (
+    <div>
+      {gambarPreview && (
+        <div className="card" style={{ padding: 12 }}>
+          <BoundingBoxes detections={detections} gambarPreview={gambarPreview} />
+        </div>
+      )}
+
+      {total > 0 && (
+        <div className="card" style={{ background: '#EFF6FF', marginBottom: 12, padding: '8px 12px', fontSize: '0.9rem' }}>
+          Ditemukan <strong>{total}</strong> TBS dalam gambar
+        </div>
+      )}
+
+      {detections.map((det, i) => (
+        <DetectionCard key={i} det={det} index={i} />
+      ))}
+
       <div style={{ display: 'flex', gap: 10 }}>
         <button className="btn btn-back" onClick={onBack} style={{ flex: 1 }}>
           ← Deteksi Baru
         </button>
         <button className="btn btn-primary" onClick={onBack} style={{ flex: 1, fontSize: '0.9rem' }}>
-          📸 Deteksi Lagi
+          Deteksi Lagi
         </button>
       </div>
     </div>

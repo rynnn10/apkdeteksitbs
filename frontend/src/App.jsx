@@ -1,3 +1,4 @@
+/* 2026-07-14 15:30 UTC | v2.0.0 | YOLOv8 object detection (multi-TBS per image) */
 import React, { useState } from 'react';
 import DeteksiBaru from './components/DeteksiBaru';
 import HasilDeteksi from './components/HasilDeteksi';
@@ -67,7 +68,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>TBS Deteksi v1.5.0 — Kelapa Sawit Indonesia Maju | 2026-07-12 23:30</p>
+        <p>TBS Deteksi v2.0.0 — YOLOv8 Object Detection | 2026-07-14 15:30 UTC</p>
       </footer>
     </div>
   );

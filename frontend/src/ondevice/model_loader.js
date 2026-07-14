@@ -1,6 +1,4 @@
-/* Updated: 2026-07-12 23:45 | v1.5.0
- * Changed from fetch (broken on file://) to XHR + tf.io.fromMemory
- */
+/* 2026-07-13 15:20 | v1.5.1 | Fix preprocessing: letterbox resize match training (ImageDataGenerator target_size) + dummy mode='demo' */
 const IMG_SIZE = 224;
 const CLASS_LABELS = ['mentah','kurang_matang','matang','terlalu_matang','busuk'];
 
@@ -20,6 +18,8 @@ const WARNA_MAP = {
 let _model = null;
 let _modelLoaded = false;
 let _modelLoading = false;
+
+/* 2026-07-13 14:45 | v1.5.1 | Pulse animation badge + clearer mode label (ONDEVICE/Offline/Server/Demo) */
 
 // XHR-based file reader (works on file:// protocol, unlike fetch)
 function readFile(path) {
@@ -58,6 +58,34 @@ function headFile(path) {
     xhr.onerror = () => resolve(false);
     xhr.send();
   });
+}
+
+/**
+ * Letterbox resize: maintain aspect ratio, pad with black, then crop to 224x224
+ * Matches Keras ImageDataGenerator.flow_from_directory(target_size=(224,224))
+ */
+function letterboxResize(imageElement, targetSize = 224) {
+  const canvas = document.createElement('canvas');
+  canvas.width = targetSize;
+  canvas.height = targetSize;
+  const ctx = canvas.getContext('2d');
+
+  // Fill with black (letterbox padding)
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, targetSize, targetSize);
+
+  const srcW = imageElement.naturalWidth || imageElement.width;
+  const srcH = imageElement.naturalHeight || imageElement.height;
+
+  // Calculate scale to fit within target maintaining aspect ratio
+  const scale = Math.min(targetSize / srcW, targetSize / srcH);
+  const drawW = srcW * scale;
+  const drawH = srcH * scale;
+  const x = (targetSize - drawW) / 2;
+  const y = (targetSize - drawH) / 2;
+
+  ctx.drawImage(imageElement, x, y, drawW, drawH);
+  return canvas;
 }
 
 async function loadModel() {
@@ -118,11 +146,7 @@ async function loadModel() {
 
 async function imageToTensor(imageElement) {
   const tf = await import('@tensorflow/tfjs');
-  const canvas = document.createElement('canvas');
-  canvas.width = IMG_SIZE;
-  canvas.height = IMG_SIZE;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(imageElement, 0, 0, IMG_SIZE, IMG_SIZE);
+  const canvas = letterboxResize(imageElement, IMG_SIZE);
   return tf.tidy(() => {
     return tf.browser.fromPixels(canvas).toFloat().div(255.0).expandDims(0);
   });
@@ -172,7 +196,7 @@ function dummyPredict() {
     all_scores: allScores,
     rekomendasi: REKOMENDASI_MAP[CLASS_LABELS[randomIdx]],
     warna: WARNA_MAP[CLASS_LABELS[randomIdx]],
-    mode: 'dummy',
+    mode: 'demo',
   };
 }
 

@@ -1,6 +1,8 @@
-﻿package com.tbsdeteksi
+﻿/* 2026-07-13 14:45 | v1.5.1 | Added back button exit confirmation dialog */
+package com.tbsdeteksi
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
@@ -129,12 +131,18 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    override fun onBackPressed() {
+override fun onBackPressed() {
         val webView = findViewById<WebView>(android.R.id.content)
         if (webView?.canGoBack() == true) {
             webView.goBack()
         } else {
-            super.onBackPressed()
+            // 2026-07-13 14:45 | v1.5.1 | Show exit confirmation dialog
+            AlertDialog.Builder(this)
+                .setTitle("Keluar Aplikasi")
+                .setMessage("Yakin ingin keluar dari TBS Deteksi?")
+                .setPositiveButton("Ya") { _, _ -> super.onBackPressed() }
+                .setNegativeButton("Batal") { _, _ -> }
+                .show()
         }
     }
 }

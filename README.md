@@ -9,6 +9,7 @@ Frontend React (Web) di-bundle ke dalam aplikasi Android (WebView) — bisa diin
 ## ✨ Fitur
 
 - 📸 **Upload foto** atau **ambil langsung dari kamera** (realtime)
+- 🔍 **Deteksi multi-TBS** — bounding box + label tiap tandan dalam satu gambar (YOLOv8)
 - 🔍 **Klasifikasi 5 kategori**: Mentah, Kurang Matang, Matang, Terlalu Matang, Busuk
 - ✅ **Confidence score (%)** tiap kategori + progress bar visual
 - 💬 **Rekomendasi tindakan** per kategori (Layak panen / Tunggu / Tolak)
@@ -96,16 +97,16 @@ $env:KEY_PASSWORD="your-key-password"
 └──────────────┬──────────────────────────┘
                │ REST API (proxy)
 ┌──────────────▼──────────────────────────┐
-│  Backend (FastAPI)         :8000         │
-│  /predict  /history  /stats             │
-│  model_handler.py (TFLite Inference)    │
+│  Backend (FastAPI)               :8000  │
+│  /predict  /history  /stats  /version   │
+│  model_handler.py (YOLOv8 / TFLite)     │
 │  database.py (SQLite)                   │
 └──────────────┬──────────────────────────┘
                │
 ┌──────────────▼──────────────────────────┐
 │  Model AI                               │
-│  model_tbs.tflite (MobileNetV2)         │
-│  labels.txt                             │
+│  yolov8_tbs.pt (YOLOv8 detection)       │
+│  model_tbs.tflite (TFLite fallback)     │
 └─────────────────────────────────────────┘
 ```
 
@@ -212,10 +213,11 @@ INFO:     Uvicorn running on http://0.0.0.0:8000
 | Endpoint | Method | Fungsi |
 |----------|--------|--------|
 | `/` | GET | Cek status server |
-| `/predict` | POST | Upload gambar → hasil klasifikasi + rekomendasi |
+| `/predict` | POST | Upload gambar → hasil deteksi (array detections[], tiap deteksi punya bbox, kelas, confidence) |
 | `/history` | GET | Riwayat deteksi (50 terakhir) |
 | `/stats` | GET | Statistik dashboard (per kategori + tren harian) |
 | `/kelas-info` | GET | Info detail 5 kategori + rekomendasi |
+| `/version` | GET | Versi aplikasi + build date |
 | `/uploads/` | Static | Akses foto hasil deteksi |
 
 ---
@@ -301,9 +303,11 @@ Browser:     http://localhost:3000
 
 **Android:** Kotlin · Jetpack Compose · WebView · Gradle 8.7
 
-**Model AI:** MobileNetV2 (Transfer Learning) · TFLite (quantized) · Input 224×224 RGB
+**Model AI (Classification):** MobileNetV2 (Transfer Learning) · TFLite (quantized) · Input 224×224 RGB
+**Model AI (Detection):** YOLOv8n (Ultralytics) · Input 640×640 · Output bounding box + label per TBS
 
-**Training:** MobileNetV2 pre-trained · ImageNet weights · 2.4M params (164K trainable) · Data Augmentation
+**Training (Classification):** MobileNetV2 pre-trained · ImageNet weights · 2.4M params (164K trainable) · Data Augmentation
+**Training (Detection):** YOLOv8 nano · pretrained COCO · 3.2M params · Roboflow dataset (4160 gambar + bounding box) · Colab
 
 ---
 
@@ -311,7 +315,16 @@ Browser:     http://localhost:3000
 
 ### Dataset Options
 
-**Opsi A: Mendeley (Classification, Recommended)**
+**Opsi D (BARU): YOLOv8 Object Detection — Training di Google Colab**
+```
+train_yolov8_colab.py
+```
+- Deteksi **bounding box** untuk setiap TBS dalam gambar (bisa lebih dari 1 tandan)
+- Dataset: Roboflow (4.160 gambar + bounding box) — langsung download via API key
+- Output: `best.pt` (weights PyTorch) + `best.tflite` (untuk Android)
+- Hasil training: letakkan `best.pt` → rename `yolov8_tbs.pt` → simpan di `backend/model_output/`
+
+**Opsi A: Mendeley (Classification)**
 ```
 https://data.mendeley.com/datasets/424y96m6sw/1
 ```
@@ -353,6 +366,79 @@ python train_model_tbs.py
 #    backend/model_output/labels.txt
 ```
 
+### 🆕 YOLOv8 Object Detection — Step by Step
+
+**Apa ini?** Model `yolov8_tbs.pt` bisa mendeteksi **setiap TBS** dalam gambar dan memberi bounding box + label kematangan masing-masing. Cocok untuk foto yang berisi banyak tandan.
+
+#### ⏱ Estimasi Waktu Training (Colab GPU gratis)
+- ~**30-45 menit** — 50 epoch, 4160 gambar, YOLOv8n (varian terkecil)
+- Pastikan Colab pakai **GPU**: di cell training ganti `device="cpu"` → `device="0"`
+- Kalau pakai CPU Colab: 2-3 jam (tidak disarankan)
+
+#### 📋 Cara Training di Google Colab
+
+1. Buka `train_yolov8_colab.py` di repository ini
+2. Buka [Google Colab](https://colab.research.google.com/)
+3. Copy **setiap CELL** (dari `# CELL 1` sampai `# CELL 8`) ke cell Colab yang terpisah
+4. Jalankan satu per satu
+
+#### 🏷️ Nama Kelas dari Roboflow
+Dataset Roboflow menggunakan 6 kelas dengan nama berbeda dari aplikasi:
+```
+TBS mentah     → mentah       TBS masak      → matang
+Kurang masak   → kurang_matang  Terlalu masak  → terlalu_matang
+TBS abnormal   → busuk        Janjang kosong  → busuk
+```
+Mapping ini sudah otomatis dilakukan di `model_handler.py` — tidak perlu konfigurasi manual.
+
+#### 🔑 Roboflow API Key
+Cell 2 butuh API key dari Roboflow:
+- Daftar gratis di https://universe.roboflow.com
+- Masuk → Account Settings → API Keys → copy API key
+- Paste ke kolom `API_KEY = ""` di Cell 2 (atau ketik manual saat diminta)
+
+#### ⚠️ Error "pip dependency conflicts" di Cell 1?
+**Abaikan.** Error itu cuma peringatan versi tidak cocok antar package bawaan Colab (seperti `tensorflow-text`, `google-cloud-bigquery`, dll) — **bukan error dari kode kita**. Selama progress bar `pip install` selesai 100%, lanjutkan ke Cell 2.
+
+#### 📥 Setelah Training Selesai (Cell 8)
+Colab otomatis akan **mendownload** 3 file ke laptop Anda:
+- `best.pt` → model YOLO hasil training
+- `best.tflite` → versi TFLite (cadangan)
+- `labels.txt` → daftar 5 kelas
+
+**Langkah setelah download:**
+```
+1. Buka folder download di laptop
+2. Copy best.pt
+3. Paste ke:   tbs-deteksi/backend/model_output/
+4. Rename jadi: yolov8_tbs.pt ← (nama ini yang dicek model_handler.py)
+```
+
+#### ▶️ Menjalankan Backend dengan YOLO
+Semua perintah berikut dijalankan di **laptop Anda** (bukan di Colab), di folder `tbs-deteksi/`:
+```powershell
+# Install dependencies (cukup sekali)
+cd backend
+pip install -r requirements.txt
+
+# Jalankan server FastAPI
+python main.py
+# Server siap di http://localhost:8000 (deteksi multi-TBS otomatis aktif)
+```
+
+#### 📊 Arsitektur Baru
+```
+┌──────────────┐       ┌──────────────────┐       ┌──────────────────┐
+│  Frontend    │ ───→  │  Backend         │ ───→  │  YOLOv8 Model    │
+│  (React)     │ ←───  │  (FastAPI)       │ ←───  │  (yolov8_tbs.pt) │
+│  Bounding    │       │  /api/predict    │       │  Output: array   │
+│  Boxes +     │       │  ↓               │       │  detections[]    │
+│  Cards       │       │  detections[]    │       │  └─bbox, kelas,  │
+└──────────────┘       │  └bbox, kelas,   │       │    confidence    │
+                       │    confidence    │       └──────────────────┘
+                       └──────────────────┘
+```
+
 ### YOLO → Classification Conversion
 
 ```powershell
@@ -372,11 +458,36 @@ python convert_yolo_to_classification.py --input raw_data --output dataset --cro
 
 ## ⚡ Catatan Penting
 
+- **YOLOv8 Detection vs Classification**: Model YOLO (`yolov8_tbs.pt`) otomatis dipakai kalau ada di `backend/model_output/`. Fallback ke classifier TFLite/Keras jika tidak ada.
 - **Model sintetis (bawaan)** bisa dipakai untuk testing UI, tapi hasil deteksi random. Training dengan dataset asli untuk akurasi production.
 - **Kamera hanya jalan di HTTPS/localhost** — browser blokir `getUserMedia` di plain HTTP selain localhost
 - **Port bisa diganti**: backend di `main.py` baris terakhir, frontend di `vite.config.js`
 - **GPS opsional**: API sudah support `latitude`/`longitude` params. Frontend bisa tambah `navigator.geolocation` di `DeteksiBaru.jsx`
 - **VSCode Launch Config**: Buat file `.vscode/launch.json` untuk run training via F5 (lihat `QUICKSTART.md`)
+
+## ❓ Tanya Jawab
+
+**Q: Colab Cell 1 muncul error "pip dependency conflicts"?**
+A: Aman. Itu cuma peringatan versi tidak cocok antar package **bawaan Colab** (tensorflow-text, google-cloud-bigquery, dll) — bukan dari package kita. Lanjut ke Cell 2.
+
+**Q: "Training selesai → download best.pt" — download ke mana?**
+A: Colab otomatis unduh ke folder **Downloads** browser Anda. Setelah itu copy manual ke `backend/model_output/yolov8_tbs.pt`.
+
+**Q: "pip install -r backend/requirements.txt" dan "python main.py" dijalankan di mana?**
+A: Di **laptop Anda** (bukan di Colab), di dalam folder `tbs-deteksi/` — buka terminal/PowerShell, lalu:
+```powershell
+cd tbs-deteksi/backend
+pip install -r requirements.txt
+python main.py
+```
+
+**Q: Berapa lama training YOLOv8 di Colab?**
+A: ~30-45 menit (GPU) — pastikan `device="0"` bukan `device="cpu"`.
+
+**Q: Gimana cara cek apakah backend pakai YOLO atau classifier lama?**
+A: Lihat log saat `python main.py`:
+- `YOLOv8 loaded: backend/model_output/yolov8_tbs.pt` → pakai YOLO
+- `Fallback: using classifier` → pakai classifier lama (TFLite/Keras)
 
 ---
 
