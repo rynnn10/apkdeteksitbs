@@ -1,4 +1,4 @@
-// Updated: 2026-07-14 15:30 UTC | v2.0.0 — YOLOv8 object detection
+// Updated: 2026-07-14 22:00 UTC | v2.0.2 — documentation + version sync
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
@@ -13,12 +13,12 @@ android {
     applicationId = "com.tbsdeteksi.kelapa.sawit"
     minSdk = 24
     targetSdk = 36
-    versionCode = 11
-    versionName = "2.0.0"
+    versionCode = 12
+    versionName = "2.0.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     buildConfigField("String", "BUILD_TIMESTAMP", "\"${System.currentTimeMillis()}\"")
-    buildConfigField("String", "BUILD_DATE", "\"2026-07-14 15:30:00 UTC\"")
+    buildConfigField("String", "BUILD_DATE", "\"2026-07-14 22:00:00 UTC\"")
   }
 
   signingConfigs {

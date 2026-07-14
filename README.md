@@ -16,6 +16,7 @@ Frontend React (Web) di-bundle ke dalam aplikasi Android (WebView) — bisa diin
 - 📋 **Riwayat deteksi** lengkap dengan timestamp (SQLite)
 - 📊 **Dashboard statistik** — Pie chart distribusi + Bar chart tren harian (Recharts)
 - 📱 **Mobile-friendly UI** — Tombol besar, kontras tinggi, akses kamera via browser
+- ↩️ **Konfirmasi keluar** — Popup "Yakin ingin keluar?" saat tekan tombol back di HP
 
 ## 📱 Build APK Android
 
@@ -497,5 +498,6 @@ Proyek ini dibuat untuk keperluan edukasi dan riset.
 
 ---
 
-**🌴 Kelapa Sawit Indonesia Maju!**
+**🌴 Kelapa Sawit Indonesia Maju!**  
+*v2.0.2 — 2026-07-14 22:00 UTC*
 

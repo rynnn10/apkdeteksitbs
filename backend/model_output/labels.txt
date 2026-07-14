@@ -1,5 +1,6 @@
-mentah
-kurang_matang
-matang
-terlalu_matang
-busuk
+Janjang kosong
+Kurang masak
+TBS abnormal
+TBS masak
+TBS mentah
+Terlalu masak

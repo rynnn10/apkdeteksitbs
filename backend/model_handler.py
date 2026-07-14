@@ -1,7 +1,7 @@
 """
 Load model, preprocess, run inference. Supports YOLO detection + TFLite/Keras classification fallback.
 
-Updated: 2026-07-14 15:30 UTC | v2.0.0
+Updated: 2026-07-14 22:00 UTC | v2.0.2
 """
 import os
 import numpy as np

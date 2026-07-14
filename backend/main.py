@@ -6,7 +6,7 @@ TBS Deteksi Kelapa Sawit — Fullstack App
   Gambar: /uploads/
 
 Now with YOLOv8 object detection (multiple TBS per image).
-Updated: 2026-07-14 15:30 UTC | v2.0.0
+Updated: 2026-07-14 22:00 UTC | v2.0.2
 """
 import os
 import sys
@@ -22,8 +22,8 @@ import io
 from model_handler import get_detector
 from database import init_db, save_detection, get_all_history, get_stats
 
-APP_VERSION = "2.0.0"
-BUILD_DATE = "2026-07-14 15:30 UTC"
+APP_VERSION = "2.0.2"
+BUILD_DATE = "2026-07-14 22:00 UTC"
 
 DEV_MODE = "--dev" in sys.argv
 
