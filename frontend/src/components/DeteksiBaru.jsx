@@ -97,9 +97,10 @@ export default function DeteksiBaru({ onHasil }) {
     setLoading(true);
     try {
       if (isAndroidWebView && window.NativeDetector?.isAvailable?.()) {
-        // ponytail: native YOLO TFLite via JS bridge
         const base64 = await fileToBase64(image);
-        const raw = window.NativeDetector.detect(base64.split(",")[1]);
+        let raw;
+        try { raw = window.NativeDetector.detect(base64.split(",")[1]); }
+        catch (e) { throw new Error("Native error: " + e.message); }
         const dets = JSON.parse(raw);
         const result = {
           detections: dets.map(d => ({ ...d, all_scores: { [d.kelas_pred]: d.confidence / 100 } })),

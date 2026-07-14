@@ -101,7 +101,7 @@ class MainActivity : ComponentActivity() {
         fun isAvailable(): Boolean = nativeDetectorReady
 
         @JavascriptInterface
-        fun detect(imageBase64: String): String {
+        fun detect(imageBase64: String): String = try {
             val detector = yoloDetector ?: return "[]"
             val detections = detector.detectFromBase64(imageBase64)
             val arr = JSONArray()
@@ -122,6 +122,9 @@ class MainActivity : ComponentActivity() {
                 arr.put(obj)
             }
             return arr.toString()
+        } catch (e: Exception) {
+            android.util.Log.e("NativeBridge", "detect failed", e)
+            "[]"
         }
     }
 
