@@ -29,11 +29,15 @@ class YoloDetector(private val context: Context) {
 
     fun load(): Boolean = try {
         val model = context.assets.open("best.tflite").use { it.readBytes() }
-        interpreter = Interpreter(ByteBuffer.wrap(model))
-        android.util.Log.i("YOLO", "Model loaded: ${model.size} bytes")
+        android.util.Log.i("YOLO", "Read ${model.size} bytes from assets")
+        val cacheFile = java.io.File(context.cacheDir, "yolo_model_${model.size}.tflite")
+        if (!cacheFile.exists()) cacheFile.writeBytes(model)
+        interpreter = Interpreter(cacheFile)
+        android.util.Log.i("YOLO", "Model loaded OK from ${cacheFile.path}")
         true
     } catch (e: Exception) {
-        android.util.Log.e("YOLO", "Load failed: ${e.message}")
+        android.util.Log.e("YOLO", "Load failed", e)
+        android.widget.Toast.makeText(context, e.message ?: "Unknown error", android.widget.Toast.LENGTH_LONG).show()
         false
     }
 

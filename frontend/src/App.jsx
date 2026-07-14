@@ -68,7 +68,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>TBS Deteksi v2.1.0 — YOLOv8 Native | 2026-07-14 22:30 UTC</p>
+        <p>TBS Deteksi v2.1.1 — YOLOv8 Native | 2026-07-14 23:00 UTC</p>
       </footer>
     </div>
   );
