@@ -1,4 +1,4 @@
-/* 2026-07-14 23:30 UTC | v2.1.2 | Removed broken native YOLO. Hybrid: server/TF.js */
+/* 2026-07-14 23:45 UTC | v2.1.3 | Manual IP input for APK server mode */
 import React, { useState } from 'react';
 import DeteksiBaru from './components/DeteksiBaru';
 import HasilDeteksi from './components/HasilDeteksi';
@@ -68,7 +68,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>TBS Deteksi v2.1.2 — Hybrid (Server + TF.js) | 2026-07-14 23:30 UTC</p>
+        <p>TBS Deteksi v2.1.3 — Manual IP Server | 2026-07-14 23:45 UTC</p>
       </footer>
     </div>
   );

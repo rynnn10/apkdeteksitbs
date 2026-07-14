@@ -1,11 +1,8 @@
 ﻿import React, { useState, useRef, useCallback, useEffect } from "react";
 import { predictOnDevice, isOnDeviceReady } from "../ondevice/model_loader";
 
-// 2026-07-13 14:35 | v1.5.1 | AI badge: ONDEVICE/Server/Offline/Demo + pulse animation + loading state
-// In APK (file://), no proxy available — backend reachable via LAN IP
-// Default: try on-device inference first, fallback dummy
+/* Updated: 2026-07-14 23:45 UTC | v2.1.3 | Manual IP input for APK server mode */
 const isAndroidWebView = typeof window !== "undefined" && window.location.protocol === "file:";
-const API_BASE = isAndroidWebView ? "" : "";
 
 export default function DeteksiBaru({ onHasil }) {
   const [image, setImage] = useState(null);
@@ -14,20 +11,29 @@ export default function DeteksiBaru({ onHasil }) {
   const [mode, setMode] = useState("loading");
   const [showCamera, setShowCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
-  const [modelLoadError, setModelLoadError] = useState(null);
+  const [serverIp, setServerIp] = useState("");
+  const [showIpInput, setShowIpInput] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     (async () => {
+      // Check if user has saved a server IP
+      const savedIp = localStorage.getItem("server_ip") || "";
+      if (savedIp) {
+        setServerIp(savedIp);
+        try {
+          const res = await fetch(`http://${savedIp}:8000/api`);
+          if (res.ok) { setMode("server"); return; }
+        } catch {}
+      }
+      // Fallback to on-device
       if (isAndroidWebView) {
         try {
           const ready = await isOnDeviceReady();
           setMode(ready ? "ondevice" : "offline");
-        } catch {
-          setMode("offline");
-        }
+        } catch { setMode("offline"); }
         return;
       }
       try {
@@ -39,15 +45,26 @@ export default function DeteksiBaru({ onHasil }) {
     })();
   }, []);
 
+  const saveServerIp = () => {
+    const ip = serverIp.trim();
+    if (!ip) return;
+    localStorage.setItem("server_ip", ip);
+    // Try connecting
+    fetch(`http://${ip}:8000/api`).then(r => { if (r.ok) setMode("server"); }).catch(() => {});
+    setShowIpInput(false);
+  };
+
   const getBadgeConfig = () => {
     switch (mode) {
-      case "server": return { label: "SERVER", className: "server", tip: "Menghubungkan ke backend FastAPI" };
+      case "server": return { label: "SERVER", className: "server", tip: `Backend: ${serverIp || "localhost"}:8000` };
       case "ondevice": return { label: "ONDEVICE", className: "ondevice", tip: "Model AI berjalan di HP (TF.js)" };
-      case "offline": return { label: "OFFLINE", className: "offline", tip: "Model tidak ditemukan, cek assets/model_tfjs" };
-      case "loading": return { label: "MEMUAT AI...", className: "loading", tip: "Memuat model TensorFlow.js..." };
-      default: return { label: "DEMO", className: "demo", tip: "Mode simulasi acak (model gagal load)" };
+      case "offline": return { label: "OFFLINE", className: "offline", tip: "Model tidak ditemukan" };
+      case "loading": return { label: "MEMUAT AI...", className: "loading", tip: "Memuat model..." };
+      default: return { label: "DEMO", className: "demo", tip: "Mode simulasi acak" };
     }
   };
+
+  const apiBase = mode === "server" && serverIp ? `http://${serverIp}:8000` : isAndroidWebView ? "" : "";
 
   const handleFile = useCallback((file) => {
     if (!file) return;
@@ -99,7 +116,7 @@ export default function DeteksiBaru({ onHasil }) {
       if (mode === "server") {
         const formData = new FormData();
         formData.append("file", image);
-        const res = await fetch(`${API_BASE}/api/predict`, { method: "POST", body: formData });
+        const res = await fetch(`${apiBase}/api/predict`, { method: "POST", body: formData });
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         onHasil(await res.json(), preview);
       } else {
@@ -155,6 +172,23 @@ export default function DeteksiBaru({ onHasil }) {
           </div>
         )}
       </div>
+
+      {isAndroidWebView && (
+        <div className="card" style={{ background: "#F3F4F6", fontSize: "0.8rem", padding: "8px 12px" }}>
+          {showIpInput ? (
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input type="text" placeholder="192.168.1.5" value={serverIp} onChange={e => setServerIp(e.target.value)}
+                style={{ flex: 1, padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: "0.85rem" }} />
+              <button onClick={saveServerIp} className="btn btn-primary" style={{ padding: "4px 12px", fontSize: "0.8rem" }}>Simpan</button>
+              <button onClick={() => setShowIpInput(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280" }}>✕</button>
+            </div>
+          ) : (
+            <span style={{ cursor: "pointer", color: "#2563EB" }} onClick={() => setShowIpInput(true)}>
+              {serverIp ? `Server: ${serverIp}:8000 (tap ganti)` : "Tap untuk isi IP server laptop"}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="card" style={{ background: "#EFF6FF", fontSize: "0.85rem" }}>
         <strong>Tips:</strong> Pastikan foto TBS jelas, pencahayaan cukup, dan seluruh tandan terlihat dalam frame untuk hasil optimal.

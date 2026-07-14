@@ -22,8 +22,8 @@ import io
 from model_handler import get_detector
 from database import init_db, save_detection, get_all_history, get_stats
 
-APP_VERSION = "2.1.2"
-BUILD_DATE = "2026-07-14 23:30 UTC"
+APP_VERSION = "2.1.3"
+BUILD_DATE = "2026-07-14 23:45 UTC"
 
 DEV_MODE = "--dev" in sys.argv
 
