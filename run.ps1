@@ -549,13 +549,26 @@ Write-Host "==================== LANGKAH 6: BUILD APK ====================" -For
 $buildSuccess = Build-APK
 
 # ============================================================
-# LANGKAH 7: INSTALL APK
+# LANGKAH 7: PILIH METODE INSTAL
 # ============================================================
 if ($buildSuccess) {
     Write-Host ""
     Write-Host "==================== LANGKAH 7: INSTALL APK ====================" -ForegroundColor Magenta
 
-    $installSuccess = Install-APK -TargetDeviceId $finalDeviceId
+    Write-Host "  Pilih metode install:" -ForegroundColor Yellow
+    Write-Host "  [1] WiFi (auto-scan jaringan)" -ForegroundColor Cyan
+    Write-Host "  [2] USB (kabel)" -ForegroundColor Cyan
+    Write-Host "  [3] Skip (install manual nanti)" -ForegroundColor Gray
+    $installChoice = Read-Host ">> Pilih (1/2/3)"
+
+    $installSuccess = $false
+    if ($installChoice -eq "1") {
+        $installSuccess = Install-APK -TargetDeviceId $finalDeviceId
+    } elseif ($installChoice -eq "2") {
+        $installSuccess = Install-APK -TargetDeviceId "usb"
+    } else {
+        Write-Host "  Install dilewati. APK di: $ROOT\app\build\outputs\apk\debug\app-debug.apk" -ForegroundColor Yellow
+    }
 
     if ($installSuccess) {
         # ============================================================
