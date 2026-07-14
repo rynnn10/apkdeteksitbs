@@ -13,8 +13,8 @@ android {
     applicationId = "com.tbsdeteksi.kelapa.sawit"
     minSdk = 24
     targetSdk = 36
-    versionCode = 16
-    versionName = "2.1.3"
+    versionCode = 17
+    versionName = "2.2.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     buildConfigField("String", "BUILD_TIMESTAMP", "\"${System.currentTimeMillis()}\"")
@@ -99,6 +99,7 @@ dependencies {
   implementation(libs.kotlinx.coroutines.core)
 
   testImplementation(libs.androidx.compose.ui.test.junit4)
+  implementation("org.tensorflow:tensorflow-lite:2.12.0")
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
   testImplementation(libs.junit)
