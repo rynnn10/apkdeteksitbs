@@ -51,6 +51,14 @@ print("Val path:", val_dir)
 # CELL 4: Train YOLOv8
 # epochs=50 is good for 4k images. Reduce to 20 for quick test.
 # ============================================================
+# ⚠ After restarting runtime (for GPU), ALL pip packages are wiped.
+# Run Cell 1 again before this cell if you see "No module named ultralytics".
+try:
+    from ultralytics import YOLO
+except ModuleNotFoundError:
+    !pip install ultralytics roboflow tensorflowjs -q
+    from ultralytics import YOLO
+
 import torch
 device = "0" if torch.cuda.is_available() else "cpu"
 print(f"Using device={device} (CUDA available: {torch.cuda.is_available()})")
@@ -58,13 +66,11 @@ if device == "cpu":
     print("⚠ No GPU detected. Training will be slow (~2-4 hrs).")
     print("  Fix: Runtime → Change runtime type → T4 GPU → Restart → re-run from Cell 1")
 
-from ultralytics import YOLO
-
 model = YOLO("yolov8n.pt")  # nano — fastest, smallest, good for mobile
 
 model.train(
     data=data_yaml,
-    epochs=50,
+    epochs=25,
     imgsz=640,
     batch=16,
     patience=10,
@@ -102,9 +108,25 @@ print("labels.txt created:", cfg["names"])
 from google.colab import files
 
 # The .pt weights go to backend/model_output/yolov8_tbs.pt
-files.download("runs/train/tbs_yolov8/weights/best.pt")
-# The TFLite model (future use)
-files.download("runs/train/tbs_yolov8/weights/best.tflite")
-# Labels file
+# ponytail: YOLO adds extra "runs/detect/" prefix automatically.
+# Actual paths vary; find them dynamically.
+import glob
+pt_files = glob.glob("runs/**/best.pt", recursive=True)
+tflite_files = glob.glob("runs/**/best.tflite", recursive=True)
+
+if pt_files:
+    files.download(pt_files[0])
+else:
+    print("best.pt not found, checking common paths...")
+    files.download("runs/detect/runs/train/tbs_yolov8/weights/best.pt")
+
+if tflite_files:
+    files.download(tflite_files[0])
+else:
+    try:
+        files.download("runs/detect/runs/train/tbs_yolov8/weights/best.tflite")
+    except:
+        print("TFLite file not found, skipping.")
+
 files.download("labels.txt")
 print("Done! Place best.pt in backend/model_output/yolov8_tbs.pt")
