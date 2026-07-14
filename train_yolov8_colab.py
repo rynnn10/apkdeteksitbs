@@ -90,9 +90,11 @@ print(f"mAP50-95: {metrics.box.map:.3f}")
 
 # ============================================================
 # CELL 6: Export to TFLite (for Android)
+# nms=True includes box decoding + NMS in the TFLite graph
+# Without nms=True, raw output needs manual decoding (broken)
 # ============================================================
-model.export(format="tflite", imgsz=640)
-print("TFLite exported!")
+model.export(format="tflite", imgsz=640, nms=True)
+print("TFLite exported with NMS!")
 
 # ============================================================
 # CELL 7: Save labels.txt for inference

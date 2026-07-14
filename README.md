@@ -17,7 +17,7 @@ Frontend React (Web) di-bundle ke dalam aplikasi Android (WebView) — bisa diin
 - 📊 **Dashboard statistik** — Pie chart distribusi + Bar chart tren harian (Recharts)
 - 📱 **Mobile-friendly UI** — Tombol besar, kontras tinggi, akses kamera via browser
 - ↩️ **Konfirmasi keluar** — Popup "Yakin ingin keluar?" saat tekan tombol back di HP
-- 🤖 **YOLO offline** — Native TFLite inference via JS Bridge (APK, tanpa server)
+- 🖥️ **Hybrid mode** — YOLOv8 deteksi via backend (server) atau TF.js klasifikasi (offline)
 
 ## 📱 Build APK Android
 
@@ -402,19 +402,35 @@ Cell 2 butuh API key dari Roboflow:
 #### ⚠️ Error "pip dependency conflicts" di Cell 1?
 **Abaikan.** Error itu cuma peringatan versi tidak cocok antar package bawaan Colab (seperti `tensorflow-text`, `google-cloud-bigquery`, dll) — **bukan error dari kode kita**. Selama progress bar `pip install` selesai 100%, lanjutkan ke Cell 2.
 
+#### 🧩 TFLite Export (Native Android — Opsional)
+**Catatan:** TFLite export default (`nms=False`) menghasilkan output yang tidak bisa diparsing manual.
+Untuk export yang benar, **ubah Cell 6** di Colab menjadi:
+```python
+model.export(format="tflite", imgsz=640, nms=True)
+```
+Dengan `nms=True`, box decoding + NMS sudah termasuk dalam model graph. Output TFLite akan berupa `[N, 6]` per gambar (`N` deteksi, masing-masing `[x1,y1,x2,y2,conf,cls]`).
+
+⚠ **Ini membutuhkan training ulang atau setidaknya re-export dari PyTorch model yang sudah ada.**
+Untuk re-export tanpa training ulang, jalankan cell terpisah di Colab:
+```python
+from ultralytics import YOLO
+model = YOLO("runs/detect/runs/train/tbs_yolov8/weights/best.pt")
+model.export(format="tflite", imgsz=640, nms=True)
+```
+
 #### 📥 Setelah Training Selesai (Cell 8)
-Colab otomatis akan **mendownload** 3 file ke laptop Anda:
-- `best.pt` → model YOLO hasil training
-- `best.tflite` → versi TFLite (cadangan)
-- `labels.txt` → daftar 5 kelas
+Colab otomatis akan **mendownload** file ke laptop Anda:
+- `best.pt` → model YOLO hasil training (wajib)
+- `best.tflite` → versi TFLite (opsional, untuk native Android)
+- `labels.txt` → daftar kelas
 
 **Langkah setelah download:**
 ```
-1. Buka folder download di laptop
-2. Copy best.pt
-3. Paste ke:   tbs-deteksi/backend/model_output/
-4. Rename jadi: yolov8_tbs.pt ← (nama ini yang dicek model_handler.py)
+1. Buat folder download di laptop
+2. Copy best.pt → rename yolov8_tbs.pt
+3. Simpan ke:  tbs-deteksi/backend/model_output/yolov8_tbs.pt
 ```
+Model `.pt` ini dipakai oleh backend FastAPI — bounding box + deteksi multi-TBS langsung berfungsi.
 
 #### ▶️ Menjalankan Backend dengan YOLO
 Semua perintah berikut dijalankan di **laptop Anda** (bukan di Colab), di folder `tbs-deteksi/`:
@@ -500,5 +516,5 @@ Proyek ini dibuat untuk keperluan edukasi dan riset.
 ---
 
 **🌴 Kelapa Sawit Indonesia Maju!**  
-*v2.1.0 — 2026-07-14 22:30 UTC*
+*v2.1.2 — 2026-07-14 23:30 UTC*
 
