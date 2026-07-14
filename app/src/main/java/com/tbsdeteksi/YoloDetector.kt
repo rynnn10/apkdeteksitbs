@@ -30,8 +30,10 @@ class YoloDetector(private val context: Context) {
     fun load(): Boolean = try {
         val model = context.assets.open("best.tflite").use { it.readBytes() }
         interpreter = Interpreter(ByteBuffer.wrap(model))
+        android.util.Log.i("YOLO", "Model loaded: ${model.size} bytes")
         true
     } catch (e: Exception) {
+        android.util.Log.e("YOLO", "Load failed: ${e.message}")
         false
     }
 
@@ -116,11 +118,11 @@ class YoloDetector(private val context: Context) {
         val kept = mutableListOf<Detection>()
         val removed = BooleanArray(dets.size)
 
-        for (i in detets.indices) {
+        for (i in dets.indices) {
             if (removed[i]) continue
             kept.add(dets[i])
-            for (j in i + 1 until detets.size) {
-                if (!removed[j] && iou(dets[i], detets[j]) > IOU_THRESHOLD) {
+            for (j in i + 1 until dets.size) {
+                if (!removed[j] && iou(dets[i], dets[j]) > IOU_THRESHOLD) {
                     removed[j] = true
                 }
             }

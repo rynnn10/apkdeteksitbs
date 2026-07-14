@@ -77,9 +77,9 @@ class MainActivity : ComponentActivity() {
 
         // Load YOLO TFLite model
         yoloDetector = YoloDetector(this)
-        val loaded = yoloDetector?.load() ?: false
-        if (!loaded) {
-            Toast.makeText(this, "Gagal load model YOLO, fallback ke server", Toast.LENGTH_LONG).show()
+        nativeDetectorReady = yoloDetector?.load() ?: false
+        if (!nativeDetectorReady) {
+            Toast.makeText(this, "Gagal load model YOLO", Toast.LENGTH_LONG).show()
         }
 
         setContent {
@@ -94,11 +94,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var nativeDetectorReady = false
+
     inner class NativeBridge {
         @JavascriptInterface
-        fun isAvailable(): Boolean = yoloDetector != null && yoloDetector?.let {
-            try { it.load() } catch (e: Exception) { false }
-        } ?: false
+        fun isAvailable(): Boolean = nativeDetectorReady
 
         @JavascriptInterface
         fun detect(imageBase64: String): String {
