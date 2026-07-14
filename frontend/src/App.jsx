@@ -1,4 +1,4 @@
-/* 2026-07-14 22:00 UTC | v2.0.2 | README update + version sync */
+/* 2026-07-14 22:30 UTC | v2.1.0 | Native YOLO TFLite + JS bridge + back button fix */
 import React, { useState } from 'react';
 import DeteksiBaru from './components/DeteksiBaru';
 import HasilDeteksi from './components/HasilDeteksi';
@@ -68,7 +68,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>TBS Deteksi v2.0.2 — YOLOv8 Object Detection | 2026-07-14 22:00 UTC</p>
+        <p>TBS Deteksi v2.1.0 — YOLOv8 Native | 2026-07-14 22:30 UTC</p>
       </footer>
     </div>
   );

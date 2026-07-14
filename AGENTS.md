@@ -26,7 +26,9 @@ VSCode `Ctrl+Shift+B` tasks pass unrecognized flags to `run.ps1` — they are ig
 - **Android**: `app/` — Jetpack Compose + WebView (loads `file:///android_asset/index.html`)
 - **Frontend**: `frontend/` — React 18 + Vite (port 3000 in dev, proxies `/api` and `/uploads` to localhost:8000)
 - **Backend**: `backend/` — FastAPI (port 8000, endpoints: `/api/predict`, `/api/history`, `/api/stats`, `/api/kelas-info`, `/api/version`)
-- **APK back button**: Konfirmasi keluar di `MainActivity.kt:134` (AlertDialog)
+- **APK back button**: Konfirmasi keluar via `OnBackPressedCallback`
+- **Native YOLO**: `YoloDetector.kt` + JS bridge (`NativeDetector`) — offline TFLite inference di APK
+- **Model file APK**: `app/src/main/assets/best.tflite` (YOLOv8 TFLite untuk native)
 - **Model**: `backend/model_output/` — YOLOv8 `.pt` (detection) or TFLite/Keras fallback (classification)
 
 ## Dev Mode

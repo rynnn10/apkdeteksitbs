@@ -2,7 +2,7 @@
 Database SQLite untuk menyimpan riwayat deteksi TBS.
 Supports multi-detection (YOLO) — stores detections as JSON in all_scores.
 
-Updated: 2026-07-14 22:00 UTC | v2.0.2
+Updated: 2026-07-14 22:30 UTC | v2.1.0
 """
 import sqlite3
 import os

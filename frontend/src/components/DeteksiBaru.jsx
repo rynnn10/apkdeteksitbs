@@ -96,7 +96,18 @@ export default function DeteksiBaru({ onHasil }) {
     if (!image) return alert("Pilih atau ambil foto terlebih dahulu!");
     setLoading(true);
     try {
-      if (mode === "server") {
+      if (isAndroidWebView && window.NativeDetector?.isAvailable?.()) {
+        // ponytail: native YOLO TFLite via JS bridge
+        const base64 = await fileToBase64(image);
+        const raw = window.NativeDetector.detect(base64.split(",")[1]);
+        const dets = JSON.parse(raw);
+        const result = {
+          detections: dets.map(d => ({ ...d, all_scores: { [d.kelas_pred]: d.confidence / 100 } })),
+          detection_count: dets.length,
+          image_width: 0, image_height: 0,
+        };
+        onHasil(result, preview);
+      } else if (mode === "server") {
         const formData = new FormData();
         formData.append("file", image);
         const res = await fetch(`${API_BASE}/api/predict`, { method: "POST", body: formData });
@@ -175,6 +186,15 @@ export default function DeteksiBaru({ onHasil }) {
       )}
     </div>
   );
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function blobToImage(blob) {
