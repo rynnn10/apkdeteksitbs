@@ -1,4 +1,4 @@
-/* 2026-07-15 00:00 UTC | v2.2.0 | Native YOLO offline + server + TF.js fallback */
+/* 2026-07-15 00:30 UTC | v2.2.1 | Fix error + TF.js dummy fallback */
 import React, { useState } from 'react';
 import DeteksiBaru from './components/DeteksiBaru';
 import HasilDeteksi from './components/HasilDeteksi';
@@ -68,7 +68,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>TBS Deteksi v2.2.0 — Native YOLO Offline | 2026-07-15 00:00 UTC</p>
+        <p>TBS Deteksi v2.2.1 — Native YOLO + Server + Dummy | 2026-07-15 00:30 UTC</p>
       </footer>
     </div>
   );

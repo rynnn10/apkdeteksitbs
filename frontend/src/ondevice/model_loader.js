@@ -1,4 +1,4 @@
-/* 2026-07-13 15:20 | v1.5.1 | Fix preprocessing: letterbox resize match training (ImageDataGenerator target_size) + dummy mode='demo' */
+/* Updated: 2026-07-15 00:30 UTC | v2.2.0 | Native YOLO is primary offline path, TF.js fallback removed (import fails in WebView) */
 const IMG_SIZE = 224;
 const CLASS_LABELS = ['mentah','kurang_matang','matang','terlalu_matang','busuk'];
 
@@ -88,99 +88,13 @@ function letterboxResize(imageElement, targetSize = 224) {
   return canvas;
 }
 
-async function loadModel() {
-  if (_modelLoaded) return _model;
-  if (_modelLoading) {
-    let waited = 0;
-    while (_modelLoading && waited < 30) {
-      await new Promise(r => setTimeout(r, 500));
-      waited++;
-    }
-    return _model;
-  }
-
-  _modelLoading = true;
-  try {
-    const tf = await import('@tensorflow/tfjs');
-    await tf.ready();
-
-    // Read model.json via XHR (works on file://)
-    const modelJsonText = await readText('./model_tfjs/model.json');
-    const modelConfig = JSON.parse(modelJsonText);
-
-    // Read weight files
-    const weightSpecs = modelConfig.weightsManifest[0].weights;
-    const weightPaths = modelConfig.weightsManifest[0].paths;
-    const weightDataList = [];
-    for (const wp of weightPaths) {
-      const data = await readFile(`./model_tfjs/${wp}`);
-      weightDataList.push(data);
-    }
-
-    // Merge weight data
-    let totalLength = 0;
-    for (const d of weightDataList) totalLength += d.byteLength;
-    const mergedWeightData = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const d of weightDataList) {
-      mergedWeightData.set(new Uint8Array(d), offset);
-      offset += d.byteLength;
-    }
-
-    // Load model from memory (no fetch needed)
-    const modelTopology = modelConfig.modelTopology;
-    _model = await tf.loadLayersModel(tf.io.fromMemory(
-      modelTopology, weightSpecs, mergedWeightData
-    ));
-    _modelLoaded = true;
-    return _model;
-  } catch (err) {
-    console.warn('[TFJS] model load failed, using dummy:', err.message);
-    _model = null;
-    _modelLoaded = false;
-    return null;
-  } finally {
-    _modelLoading = false;
-  }
-}
-
-async function imageToTensor(imageElement) {
-  const tf = await import('@tensorflow/tfjs');
-  const canvas = letterboxResize(imageElement, IMG_SIZE);
-  return tf.tidy(() => {
-    return tf.browser.fromPixels(canvas).toFloat().div(255.0).expandDims(0);
-  });
-}
+// ponytail: TF.js import fails in WebView (dynamic import not supported).
+// Native YOLO (YoloDetector.kt) is the primary offline path.
+// This fallback always returns dummy result when native is unavailable.
+async function loadModel() { return null; }
 
 export async function predictOnDevice(imageElement) {
-  const model = await loadModel();
-  if (!model) return dummyPredict();
-
-  try {
-    const tf = await import('@tensorflow/tfjs');
-    const inputTensor = await imageToTensor(imageElement);
-    const predictions = model.predict(inputTensor);
-    const values = await predictions.data();
-    const scores = Array.from(values);
-    tf.dispose([inputTensor, predictions]);
-
-    const topIdx = scores.indexOf(Math.max(...scores));
-    const confidence = (scores[topIdx] * 100).toFixed(1);
-    const allScores = {};
-    CLASS_LABELS.forEach((l, i) => { allScores[l] = (scores[i] * 100).toFixed(1); });
-
-    return {
-      kelas_pred: CLASS_LABELS[topIdx],
-      confidence: parseFloat(confidence),
-      all_scores: allScores,
-      rekomendasi: REKOMENDASI_MAP[CLASS_LABELS[topIdx]],
-      warna: WARNA_MAP[CLASS_LABELS[topIdx]],
-      mode: 'ondevice',
-    };
-  } catch (err) {
-    console.error('[TFJS] inference error:', err);
-    return dummyPredict();
-  }
+  return dummyPredict();
 }
 
 function dummyPredict() {

@@ -119,11 +119,13 @@ export default function HasilDeteksi({ hasil, gambarPreview, onBack }) {
         </div>
       )}
 
-      {total > 0 && (
-        <div className="card" style={{ background: '#EFF6FF', marginBottom: 12, padding: '8px 12px', fontSize: '0.9rem' }}>
-          Ditemukan <strong>{total}</strong> TBS dalam gambar
-        </div>
-      )}
+      <div className="card" style={{ background: '#EFF6FF', marginBottom: 12, padding: '8px 12px', fontSize: '0.9rem' }}>
+        {total > 0 ? (
+          <>Ditemukan <strong>{total}</strong> TBS dalam gambar</>
+        ) : (
+          <span style={{ color: '#6b7280' }}>Tidak ada TBS terdeteksi dalam gambar</span>
+        )}
+      </div>
 
       {detections.map((det, i) => (
         <DetectionCard key={i} det={det} index={i} />

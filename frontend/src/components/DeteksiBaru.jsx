@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useCallback, useEffect } from "react";
 import { predictOnDevice, isOnDeviceReady } from "../ondevice/model_loader";
 
-/* Updated: 2026-07-14 23:45 UTC | v2.1.3 | Manual IP input for APK server mode */
+/* Updated: 2026-07-15 00:30 UTC | v2.2.1 | Fix error message display, TF.js dummy fallback */
 const isAndroidWebView = typeof window !== "undefined" && window.location.protocol === "file:";
 
 export default function DeteksiBaru({ onHasil }) {
@@ -133,7 +133,7 @@ export default function DeteksiBaru({ onHasil }) {
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         onHasil(await res.json(), preview);
       }
-      // Priority 3: TF.js classifier (offline, no boxes)
+      // Priority 3: TF.js classifier (offline)
       else {
         const img = await blobToImage(image);
         onHasil(await predictOnDevice(img), preview);
@@ -142,7 +142,7 @@ export default function DeteksiBaru({ onHasil }) {
       if (mode === "server" && !window.NativeDetector?.isAvailable?.()) {
         try { const img = await blobToImage(image); onHasil(await predictOnDevice(img), preview); } catch {}
       }
-      alert("Gagal deteksi: " + err.message);
+      alert("Gagal deteksi: " + (err && err.message ? err.message : String(err)));
     } finally { setLoading(false); }
   };
 
