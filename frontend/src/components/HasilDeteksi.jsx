@@ -1,4 +1,4 @@
-/* Updated: 2026-07-14 15:30 UTC | v2.0.0 | Multi-detection (YOLO) support */
+/* Updated: 2026-07-15 00:15 UTC | v2.2.0 | Handle single classification + multi-detection formats */
 import React from 'react';
 
 const WARNA_KELAS = {
@@ -10,8 +10,15 @@ const WARNA_KELAS = {
 };
 
 function DetectionCard({ det, index }) {
-  const { kelas_pred, kelas_en, confidence, all_scores, rekomendasi, warna, bg_warna, icon } = det;
-  const sortedScores = Object.entries(all_scores || {}).sort((a, b) => b[1] - a[1]);
+  const kelas_pred = det.kelas_pred || 'unknown';
+  const kelas_en = det.kelas_en || '';
+  const confidence = det.confidence || 0;
+  const all_scores = det.all_scores || {};
+  const rekomendasi = det.rekomendasi || '';
+  const warna = det.warna || WARNA_KELAS[kelas_pred] || '#6b7280';
+  const bg_warna = det.bg_warna || (warna + '22');
+  const icon = det.icon || '';
+  const sortedScores = Object.entries(all_scores).sort((a, b) => b[1] - a[1]);
   const rekomendasiColor = kelas_pred === 'matang' ? '#16A34A'
     : kelas_pred === 'kurang_matang' ? '#D97706'
     : kelas_pred === 'terlalu_matang' ? '#EA580C'
@@ -101,7 +108,7 @@ function BoundingBoxes({ detections, gambarPreview }) {
 export default function HasilDeteksi({ hasil, gambarPreview, onBack }) {
   if (!hasil) return null;
 
-  const detections = hasil.detections || [];
+  const detections = hasil.detections || (hasil.kelas_pred ? [hasil] : []);
   const total = detections.length;
 
   return (
