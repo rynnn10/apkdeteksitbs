@@ -101,30 +101,31 @@ class MainActivity : ComponentActivity() {
         fun isAvailable(): Boolean = nativeDetectorReady
 
         @JavascriptInterface
-        fun detect(imageBase64: String): String = try {
-            val detector = yoloDetector ?: return "[]"
-            val detections = detector.detectFromBase64(imageBase64)
-            val arr = JSONArray()
-            for (d in detections) {
-                val obj = JSONObject()
-                val bbox = JSONObject()
-                bbox.put("x1", d.x1.toDouble())
-                bbox.put("y1", d.y1.toDouble())
-                bbox.put("x2", d.x2.toDouble())
-                bbox.put("y2", d.y2.toDouble())
-                obj.put("bbox", bbox)
-                // ponytail: map Roboflow names to internal names
-                obj.put("kelas_pred", resolveKelas(d.className))
-                obj.put("confidence", String.format("%.2f", d.confidence * 100).toFloat())
-                obj.put("kelas_en", kelasEn(d.className))
-                obj.put("rekomendasi", rekomendasi(d.className))
-                obj.put("warna", warna(d.className))
-                arr.put(obj)
+        fun detect(imageBase64: String): String {
+            return try {
+                val detector = yoloDetector ?: return "[]"
+                val detections = detector.detectFromBase64(imageBase64)
+                val arr = JSONArray()
+                for (d in detections) {
+                    val obj = JSONObject()
+                    val bbox = JSONObject()
+                    bbox.put("x1", d.x1.toDouble())
+                    bbox.put("y1", d.y1.toDouble())
+                    bbox.put("x2", d.x2.toDouble())
+                    bbox.put("y2", d.y2.toDouble())
+                    obj.put("bbox", bbox)
+                    obj.put("kelas_pred", resolveKelas(d.className))
+                    obj.put("confidence", String.format("%.2f", d.confidence * 100).toFloat())
+                    obj.put("kelas_en", kelasEn(d.className))
+                    obj.put("rekomendasi", rekomendasi(d.className))
+                    obj.put("warna", warna(d.className))
+                    arr.put(obj)
+                }
+                arr.toString()
+            } catch (e: Exception) {
+                android.util.Log.e("NativeBridge", "detect failed", e)
+                "[]"
             }
-            return arr.toString()
-        } catch (e: Exception) {
-            android.util.Log.e("NativeBridge", "detect failed", e)
-            "[]"
         }
     }
 
