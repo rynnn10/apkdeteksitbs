@@ -60,11 +60,34 @@ Backend and frontend are independent in dev mode; Vite proxies API calls.
 
 ## Model
 
-- **Detection**: `backend/model_output/yolov8_tbs.pt` (YOLOv8) — preferred, returns bounding boxes per TBS
-- **Classification fallback**: `backend/model_output/model_tbs.tflite` or `model_tbs_final.keras` (single label per image)
-- **Labels**: `backend/model_output/labels.txt` (mentah, kurang_matang, matang, terlalu_matang, busuk)
+- **Server detection**: `backend/model_output/yolov8_tbs.pt` (YOLOv8) — preferred, returns bounding boxes per TBS
+- **Server classification fallback**: `backend/model_output/model_tbs.tflite` or `model_tbs_final.keras` (single label per image)
+- **On-device (offline) detection**: `frontend/public/model_tfjs_yolo/` — YOLOv8 exported to TF.js graph model (`nms=True`), same weights as `yolov8_tbs.pt`. **Not present by default** — export it on Colab (see "Export YOLO to TF.js" below) and drop the output here. Without it, on-device mode falls back to the single-label classifier below.
+- **On-device (offline) classification fallback**: `frontend/public/model_tfjs/` — Keras MobileNetV2 exported to TF.js layers model, 1 label per photo.
+- **Labels**: `backend/model_output/labels.txt` (Roboflow class names — mapped to the 5 internal keys via `ROBOFLOW_TO_INTERNAL` in both `backend/model_handler.py` and `frontend/src/ondevice/model_loader.js`; keep both in sync)
 - **Dummy (test UI)**: `cd backend; python generate_dummy_model.py`
 - **Train YOLOv8 on Colab**: `train_yolov8_colab.py` — copies cells into Google Colab, outputs `.pt` + `.tflite`
+
+### Export YOLO to TF.js (for offline on-device detection)
+
+No retraining needed if `yolov8_tbs.pt` already performs well server-side — just re-export it. Must run on Colab (or any fresh Python env); the project's local `.venv` has a `numpy`/`tensorflowjs` version conflict that breaks the converter.
+
+```python
+# Colab cell
+!pip install -q ultralytics tensorflowjs
+from ultralytics import YOLO
+model = YOLO("yolov8_tbs.pt")  # upload your trained weights first
+model.export(format="saved_model", imgsz=640, nms=True)  # -> yolov8_tbs_saved_model/
+
+!tensorflowjs_converter --input_format=tf_saved_model --output_format=tfjs_graph_model \
+  yolov8_tbs_saved_model yolov8_tbs_web
+
+!zip -r yolov8_tbs_web.zip yolov8_tbs_web
+from google.colab import files
+files.download("yolov8_tbs_web.zip")
+```
+
+Unzip and copy the contents into `frontend/public/model_tfjs_yolo/` (so it contains `model.json` + `.bin` shard(s) directly, no nested folder), then `npm run build` + copy `dist/` to `app/src/main/assets/` as usual. If `yolov8_tbs.pt` is ever retrained with a different class set, update `YOLO_LABELS` in `frontend/src/ondevice/model_loader.js` to match the new `labels.txt` order.
 
 ## Database
 

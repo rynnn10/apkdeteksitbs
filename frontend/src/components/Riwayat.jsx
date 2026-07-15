@@ -1,4 +1,6 @@
+/* Updated: Rabu, 15-07-2026 13:10 WIB | v2.5.0 | Fix: history was fetched from relative /api, which never resolves inside the APK (file:// origin) — now uses saved server IP */
 import React, { useState, useEffect } from "react";
+import { getApiBase } from "../lib/apiBase";
 
 const WARNA_MAP = {
   mentah: { bg: "#FEE2E2", text: "#DC2626" },
@@ -28,7 +30,7 @@ export default function Riwayat() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch("/api/history?limit=50");
+      const res = await fetch(`${getApiBase()}/api/history?limit=50`);
       const data = await res.json();
       const local = loadLocalHistory();
       const combined = [...data, ...local].sort((a, b) =>

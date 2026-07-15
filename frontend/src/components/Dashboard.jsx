@@ -1,4 +1,6 @@
+/* Updated: Rabu, 15-07-2026 13:10 WIB | v2.5.0 | Fix: stats fetched from relative /api, never resolved inside the APK (file:// origin) — now uses saved server IP */
 import React, { useState, useEffect } from "react";
+import { getApiBase } from "../lib/apiBase";
 import {
   PieChart,
   Pie,
@@ -66,7 +68,7 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch("/api/stats");
+      const res = await fetch(`${getApiBase()}/api/stats`);
       const serverData = await res.json();
       const localHistory = loadLocalHistory();
       const localStats = buildStatsFromHistory(localHistory);

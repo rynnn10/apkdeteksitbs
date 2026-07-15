@@ -1,4 +1,5 @@
-﻿/* Updated: 2026-07-15 01:30 UTC | v2.3.0 | Hybrid: Server YOLO + TF.js fallback, no native YOLO */
+﻿/* Updated: Rabu, 15-07-2026 13:10 WIB | v2.5.0 | Fix: camera button opened a plain gallery picker instead of the camera —
+   file chooser now launches via WebView's own createIntent(), which respects the <input capture> attribute */
 package com.tbsdeteksi
 
 import android.Manifest
@@ -41,9 +42,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private val fileChooserLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        fileUploadCallback?.onReceiveValue(uri?.let { arrayOf(it) } ?: arrayOf())
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uris = WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
+        fileUploadCallback?.onReceiveValue(uris ?: arrayOf())
         fileUploadCallback = null
     }
 
@@ -124,7 +126,17 @@ class MainActivity : ComponentActivity() {
                         ): Boolean {
                             fileUploadCallback?.onReceiveValue(null)
                             fileUploadCallback = filePathCallback
-                            fileChooserLauncher.launch("image/*")
+                            val intent = fileChooserParams?.createIntent()
+                            if (intent == null) {
+                                fileUploadCallback = null
+                                return false
+                            }
+                            try {
+                                fileChooserLauncher.launch(intent)
+                            } catch (e: Exception) {
+                                fileUploadCallback = null
+                                return false
+                            }
                             return true
                         }
 

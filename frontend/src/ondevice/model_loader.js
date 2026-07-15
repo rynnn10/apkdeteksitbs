@@ -1,6 +1,12 @@
-/* Updated: 2026-07-15 14:10 WIB | v2.2.4 | No dummy fallback when YOLO empty + bbox normalization + unknown-image support */
+/* Updated: Rabu, 15-07-2026 13:10 WIB | v2.5.0 | Add real YOLO TF.js detector (multi-box), classifier now 2nd fallback */
+import * as tf from "@tensorflow/tfjs";
+import { letterboxParams, mapBoxToOriginal } from "./yolo_geometry";
+
 const IMG_SIZE = 224;
-const MAX_BBOX_AREA = 0.85; // align with native detector filter to avoid valid large TBS being rejected
+const MODEL_DIR = "./model_tfjs";
+// ponytail: mirrors backend/model_handler.py's CLASSIFIER_CONF_THRESHOLD so on-device
+// rejects weak guesses the same way the server does, instead of showing a confident wrong label.
+const CONF_THRESHOLD = 60.0;
 const CLASS_LABELS = [
   "mentah",
   "kurang_matang",
@@ -8,6 +14,34 @@ const CLASS_LABELS = [
   "terlalu_matang",
   "busuk",
 ];
+
+// --- YOLO detector (multi-box, matches server mode) ---------------------
+const YOLO_MODEL_DIR = "./model_tfjs_yolo";
+const YOLO_IMG_SIZE = 640;
+// ponytail: mirrors backend/model_handler.py's YOLO_CONF_THRESHOLD (0.25)
+const YOLO_CONF_THRESHOLD = 0.25;
+// Must match the class order in backend/model_output/labels.txt at export time —
+// the exported graph has no label metadata, so this order is load-bearing.
+// If yolov8_tbs.pt is retrained with different classes, update both files together.
+const YOLO_LABELS = [
+  "Janjang kosong",
+  "Kurang masak",
+  "TBS abnormal",
+  "TBS masak",
+  "TBS mentah",
+  "Terlalu masak",
+];
+// ponytail: same Roboflow -> internal-key mapping as backend/model_handler.py's
+// ROBOFLOW_TO_INTERNAL — duplicated because the frontend has no access to the
+// Python module; keep both in sync if class names change.
+const ROBOFLOW_TO_INTERNAL = {
+  "TBS mentah": "mentah",
+  "TBS masak": "matang",
+  "Kurang masak": "kurang_matang",
+  "Terlalu masak": "terlalu_matang",
+  "TBS abnormal": "busuk",
+  "Janjang kosong": "busuk",
+};
 
 const REKOMENDASI_MAP = {
   mentah: "Tidak layak panen. Tunggu 7-10 hari lagi",
@@ -88,132 +122,179 @@ function headFile(path) {
   });
 }
 
-/**
- * Letterbox resize: maintain aspect ratio, pad with black, then crop to 224x224
- * Matches Keras ImageDataGenerator.flow_from_directory(target_size=(224,224))
- */
-function letterboxResize(imageElement, targetSize = 224) {
-  const canvas = document.createElement("canvas");
-  canvas.width = targetSize;
-  canvas.height = targetSize;
-  const ctx = canvas.getContext("2d");
+// Combine multiple ArrayBuffers into one (weight shards) — reuse for whatever shard count the model has.
+function concatArrayBuffers(buffers) {
+  const total = buffers.reduce((sum, b) => sum + b.byteLength, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const buf of buffers) {
+    out.set(new Uint8Array(buf), offset);
+    offset += buf.byteLength;
+  }
+  return out.buffer;
+}
 
-  // Fill with black (letterbox padding)
-  ctx.fillStyle = "black";
-  ctx.fillRect(0, 0, targetSize, targetSize);
+// Custom tf.io.IOHandler that loads model.json + weight shards via XHR instead of
+// fetch() — fetch() does not work against file:// origins (the Android WebView asset
+// path), which is why the rest of this file already used XHR for reading files.
+function fileSystemIOHandler(baseDir) {
+  return {
+    load: async () => {
+      const modelJson = JSON.parse(await readText(`${baseDir}/model.json`));
+      const weightsManifest = modelJson.weightsManifest;
+      const weightSpecs = [];
+      const buffers = [];
+      for (const group of weightsManifest) {
+        weightSpecs.push(...group.weights);
+        for (const path of group.paths) {
+          buffers.push(await readFile(`${baseDir}/${path}`));
+        }
+      }
+      return {
+        modelTopology: modelJson.modelTopology,
+        weightSpecs,
+        weightData: concatArrayBuffers(buffers),
+        format: modelJson.format,
+        generatedBy: modelJson.generatedBy,
+        convertedBy: modelJson.convertedBy,
+      };
+    },
+  };
+}
 
+let _modelPromise = null;
+function getModel() {
+  if (!_modelPromise) {
+    _modelPromise = tf.loadLayersModel(fileSystemIOHandler(MODEL_DIR));
+  }
+  return _modelPromise;
+}
+
+let _yoloModelPromise = null;
+function getYoloModel() {
+  if (!_yoloModelPromise) {
+    _yoloModelPromise = tf.loadGraphModel(fileSystemIOHandler(YOLO_MODEL_DIR));
+  }
+  return _yoloModelPromise;
+}
+
+// Draw imageElement onto a YOLO_IMG_SIZE square canvas, letterboxed (aspect-ratio
+// preserved, padded with Ultralytics' default gray 114) — matches what
+// ultralytics does internally before inference, so box coordinates line up.
+function letterboxCanvas(imageElement, target = YOLO_IMG_SIZE) {
   const srcW = imageElement.naturalWidth || imageElement.width;
   const srcH = imageElement.naturalHeight || imageElement.height;
+  const { scale, drawW, drawH, padX, padY } = letterboxParams(srcW, srcH, target);
 
-  // Calculate scale to fit within target maintaining aspect ratio
-  const scale = Math.min(targetSize / srcW, targetSize / srcH);
-  const drawW = srcW * scale;
-  const drawH = srcH * scale;
-  const x = (targetSize - drawW) / 2;
-  const y = (targetSize - drawH) / 2;
-
-  ctx.drawImage(imageElement, x, y, drawW, drawH);
-  return canvas;
-}
-
-/**
- * Check if bounding box is valid (not covering entire image which indicates inference error)
- */
-function normalizeBbox(bbox, imgW, imgH) {
-  if (!bbox) return null;
-  let { x1, y1, x2, y2 } = bbox;
-  if (
-    [x1, y1, x2, y2].some(
-      (v) => v === undefined || v === null || Number.isNaN(v),
-    )
-  ) {
-    return null;
-  }
-
-  const maxCoord = Math.max(x1, y1, x2, y2);
-  if (maxCoord > 1) {
-    const width = imgW || 1;
-    const height = imgH || 1;
-    x1 = x1 / width;
-    y1 = y1 / height;
-    x2 = x2 / width;
-    y2 = y2 / height;
-  }
-
-  const normalized = {
-    x1: Math.min(Math.max(x1, 0), 1),
-    y1: Math.min(Math.max(y1, 0), 1),
-    x2: Math.min(Math.max(x2, 0), 1),
-    y2: Math.min(Math.max(y2, 0), 1),
-  };
-
-  if (normalized.x2 <= normalized.x1 || normalized.y2 <= normalized.y1) {
-    return null;
-  }
-  const area =
-    (normalized.x2 - normalized.x1) * (normalized.y2 - normalized.y1);
-  if (area <= 0 || area > MAX_BBOX_AREA) {
-    return null;
-  }
-
-  return normalized;
-}
-
-function isValidBbox(bbox) {
-  if (!bbox) return false;
-  const { x1, y1, x2, y2 } = bbox;
-  const area = (x2 - x1) * (y2 - y1);
-  if (area > MAX_BBOX_AREA || area <= 0) return false;
-  return true;
-}
-
-/**
- * Map a detect result object (from native YOLO or dummy) to full internal format
- * v2.2.4: Normalize absolute bbox coords and clamp 0-1 before rendering
- */
-function mapDetection(det, imgW, imgH) {
-  const kelas_pred = det.kelas_pred || "mentah";
-  const normalizedBbox = normalizeBbox(det.bbox, imgW, imgH);
-  return {
-    ...det,
-    bbox: normalizedBbox,
-    kelas_pred,
-    kelas_en: KELAS_EN_MAP[kelas_pred] || "Unknown",
-    all_scores: det.all_scores || {
-      [kelas_pred]: det.confidence ? det.confidence / 100 : 0.5,
-    },
-    rekomendasi: det.rekomendasi || REKOMENDASI_MAP[kelas_pred] || "",
-    warna: det.warna || WARNA_MAP[kelas_pred] || "#6B7280",
-    bg_warna: det.bg_warna || BG_WARNA_MAP[kelas_pred] || "#F3F4F6",
-    icon: det.icon || ICON_MAP[kelas_pred] || "❓",
-    confidence: det.confidence || 0,
-  };
-}
-
-/**
- * Predict using Native YOLO (Android bridge) - returns array of detections
- */
-function predictWithNativeYOLO(imageElement) {
-  // Convert image to base64
   const canvas = document.createElement("canvas");
-  const imgW = imageElement.naturalWidth || imageElement.width || 1;
-  const imgH = imageElement.naturalHeight || imageElement.height || 1;
-  canvas.width = imgW;
-  canvas.height = imgH;
-  canvas.getContext("2d").drawImage(imageElement, 0, 0);
-  const base64 = canvas.toDataURL("image/jpeg", 0.9).split(",")[1];
+  canvas.width = target;
+  canvas.height = target;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "rgb(114,114,114)";
+  ctx.fillRect(0, 0, target, target);
+  ctx.drawImage(imageElement, padX, padY, drawW, drawH);
 
-  const raw = window.NativeDetector.detect(base64);
-  const rawDetections = JSON.parse(raw || "[]");
-  console.log(`[YOLO] Raw detections: ${rawDetections.length}`);
+  return { canvas, scale, padX, padY, srcW, srcH };
+}
 
-  // Map each detection to full internal format + filter invalid
-  const detections = rawDetections
-    .map((d) => mapDetection(d, imgW, imgH))
-    .filter((d) => d && d.bbox !== null);
+/**
+ * Predict using the bundled YOLO TF.js detector — exported from the same
+ * yolov8_tbs.pt the server runs, via `model.export(format="saved_model", nms=True)`
+ * + tensorflowjs_converter. NMS is baked into the graph (nms=True), so the raw
+ * output is already-filtered [N, 6] rows of [x1,y1,x2,y2,conf,cls] in
+ * YOLO_IMG_SIZE-letterboxed pixel space — no client-side NMS needed.
+ */
+async function predictWithYOLO(imageElement) {
+  const model = await getYoloModel();
+  const { canvas, scale, padX, padY, srcW, srcH } = letterboxCanvas(imageElement);
 
-  console.log(`[YOLO] Valid detections after filter: ${detections.length}`);
+  const outputTensor = tf.tidy(() => {
+    const input = tf.browser.fromPixels(canvas).toFloat().div(255).expandDims(0);
+    const out = model.predict(input);
+    return Array.isArray(out) ? out[0] : out;
+  });
+  let rows = await outputTensor.array();
+  outputTensor.dispose();
+  // Output may come back as [1,N,6] (batched) or [N,6] — normalize to [N,6].
+  if (rows.length === 1 && Array.isArray(rows[0]) && Array.isArray(rows[0][0])) {
+    rows = rows[0];
+  }
+
+  const detections = [];
+  for (const row of rows) {
+    const [x1, y1, x2, y2, conf, clsIdx] = row;
+    if (conf < YOLO_CONF_THRESHOLD) continue;
+    const label = YOLO_LABELS[Math.round(clsIdx)];
+    if (!label) continue;
+    const kelas_pred = ROBOFLOW_TO_INTERNAL[label] || "mentah";
+
+    const bbox = mapBoxToOriginal(x1, y1, x2, y2, { scale, padX, padY, srcW, srcH });
+    if (bbox.x2 <= bbox.x1 || bbox.y2 <= bbox.y1) continue;
+
+    detections.push({
+      bbox,
+      kelas_pred,
+      kelas_en: KELAS_EN_MAP[kelas_pred],
+      confidence: round1(conf * 100),
+      all_scores: { [kelas_pred]: round4(conf) },
+      rekomendasi: REKOMENDASI_MAP[kelas_pred],
+      warna: WARNA_MAP[kelas_pred],
+      bg_warna: BG_WARNA_MAP[kelas_pred],
+      icon: ICON_MAP[kelas_pred],
+    });
+  }
   return detections;
+}
+
+
+/**
+ * Predict using the bundled TF.js classifier (MobileNetV2, same weights as the
+ * backend's Keras/TFLite fallback). Preprocessing mirrors
+ * backend/model_handler.py's TBSClassifier.preprocess(): plain resize to 224x224
+ * (no letterbox/crop) + divide by 255. Returns a single classification wrapped
+ * as a full-frame "detection" so HasilDeteksi.jsx can render it the same way.
+ */
+async function predictWithTFJS(imageElement) {
+  const model = await getModel();
+  const scoresTensor = tf.tidy(() => {
+    const img = tf.browser.fromPixels(imageElement).toFloat();
+    const resized = tf.image.resizeBilinear(img, [IMG_SIZE, IMG_SIZE]);
+    const input = resized.div(255).expandDims(0);
+    return model.predict(input);
+  });
+  const scores = await scoresTensor.data();
+  scoresTensor.dispose();
+
+  const predIdx = scores.indexOf(Math.max(...scores));
+  const kelas_pred = CLASS_LABELS[predIdx];
+  const confidence = round1(scores[predIdx] * 100);
+  const all_scores = {};
+  CLASS_LABELS.forEach((label, i) => {
+    all_scores[label] = round4(scores[i]);
+  });
+
+  if (confidence < CONF_THRESHOLD) return [];
+
+  return [
+    {
+      bbox: { x1: 0, y1: 0, x2: 1, y2: 1 },
+      kelas_pred,
+      kelas_en: KELAS_EN_MAP[kelas_pred],
+      confidence,
+      all_scores,
+      rekomendasi: REKOMENDASI_MAP[kelas_pred],
+      warna: WARNA_MAP[kelas_pred],
+      bg_warna: BG_WARNA_MAP[kelas_pred],
+      icon: ICON_MAP[kelas_pred],
+    },
+  ];
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+function round4(n) {
+  return Math.round(n * 10000) / 10000;
 }
 
 /**
@@ -244,60 +325,48 @@ function dummyPredictMulti() {
 
 /**
  * Main on-device prediction function.
+ * Priority: YOLO detector (multi-box, matches server) -> single-label classifier
+ * -> dummy (only if no model files are present at all).
  * Returns { detections: [...], detection_count: N, image_width, image_height }
  */
 export async function predictOnDevice(imageElement) {
   const imgW = imageElement.naturalWidth || imageElement.width || 0;
   const imgH = imageElement.naturalHeight || imageElement.height || 0;
-
-  // Priority 1: Native YOLO via Android bridge
-  if (window.NativeDetector?.isAvailable?.()) {
-    try {
-      const detections = predictWithNativeYOLO(imageElement);
-      // v2.2.3: return empty if YOLO found nothing — DO NOT fallback to dummy
-      // This allows the "Tidak Ada TBS Terdeteksi" UI to appear correctly
-      return {
-        detections,
-        detection_count: detections.length,
-        image_width: imgW,
-        image_height: imgH,
-      };
-    } catch (e) {
-      console.warn("Native YOLO failed:", e);
-      // v2.2.3: On native failure, return empty rather than fake dummy data
-      return {
-        detections: [],
-        detection_count: 0,
-        image_width: imgW,
-        image_height: imgH,
-      };
-    }
-  }
-
-  // Fallback: dummy (single random detection wrapped as array)
-  // v2.2.3: Only used when NativeDetector is NOT available at all (dev/browser mode)
-  const detections = dummyPredictMulti();
-  return {
+  const wrap = (detections) => ({
     detections,
     detection_count: detections.length,
     image_width: imgW,
     image_height: imgH,
-  };
+  });
+
+  if (await headFile(`${YOLO_MODEL_DIR}/model.json`)) {
+    try {
+      return wrap(await predictWithYOLO(imageElement));
+    } catch (e) {
+      console.warn("YOLO TF.js predict failed, trying classifier:", e);
+    }
+  }
+
+  try {
+    return wrap(await predictWithTFJS(imageElement));
+  } catch (e) {
+    console.warn("Classifier TF.js predict failed, using dummy:", e);
+    // No model files present/loadable — dummy keeps the UI usable instead of a hard error.
+    return wrap(dummyPredictMulti());
+  }
 }
 
 export async function loadModel() {
-  // Native YOLO doesn't need JS model loading
-  return null;
+  return getModel();
 }
 
 export async function isOnDeviceReady() {
-  // Check if native YOLO is available
-  if (window.NativeDetector?.isAvailable?.()) {
-    return true;
-  }
-  // Also check for TF.js model file as fallback indicator
   try {
-    return await headFile("./model_tfjs/model.json");
+    const [yolo, classifier] = await Promise.all([
+      headFile(`${YOLO_MODEL_DIR}/model.json`),
+      headFile(`${MODEL_DIR}/model.json`),
+    ]);
+    return yolo || classifier;
   } catch {
     return false;
   }

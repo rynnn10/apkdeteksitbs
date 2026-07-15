@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useCallback, useEffect } from "react";
 import { predictOnDevice, isOnDeviceReady } from "../ondevice/model_loader";
 
-/* Updated: 2026-07-15 14:10 WIB | v2.2.4 | Bugfix on-device multi-TBS rendering + unknown image server feedback */
+/* Updated: Rabu, 15-07-2026 13:10 WIB | v2.5.0 | On-device mode now runs real TF.js classification (was dummy); mode-picker copy corrected */
 const isAndroidWebView =
   typeof window !== "undefined" && window.location.protocol === "file:";
 
@@ -15,7 +15,7 @@ const MODE_OPTIONS = [
   {
     value: "ondevice",
     label: "On-Device",
-    desc: "Gunakan AI di HP (YOLO native)",
+    desc: "Gunakan AI di HP (TF.js, 1 label per foto)",
   },
 ];
 
@@ -201,7 +201,7 @@ export default function DeteksiBaru({ onHasil }) {
         return {
           label: "ONDEVICE",
           className: "ondevice",
-          tip: "Deteksi YOLO di HP (multi-TBS)",
+          tip: "Klasifikasi TF.js di HP (1 label per foto, offline)",
         };
       case "offline":
         return {
@@ -558,8 +558,9 @@ export default function DeteksiBaru({ onHasil }) {
         style={{ background: "#EFF6FF", fontSize: "0.85rem" }}
       >
         <strong>Tips:</strong> Pastikan foto TBS jelas, pencahayaan cukup, dan
-        seluruh tandan terlihat dalam frame untuk hasil optimal. Mode On-Device
-        mendeteksi banyak TBS sekaligus.
+        seluruh tandan terlihat dalam frame untuk hasil optimal. Mode Server
+        mendeteksi banyak TBS sekaligus (bounding box); mode On-Device memberi
+        1 label untuk keseluruhan foto.
       </div>
 
       {showCamera && (

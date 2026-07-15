@@ -1,4 +1,4 @@
-/* Updated: 2026-07-15 14:10 WIB | v2.2.4 | Patch on-device bbox normalization + unknown image server response */
+/* Updated: Rabu, 15-07-2026 13:10 WIB | v2.6.0 | Real on-device YOLO detector (multi-box) added */
 import React, { useState } from "react";
 import DeteksiBaru from "./components/DeteksiBaru";
 import HasilDeteksi from "./components/HasilDeteksi";
@@ -68,7 +68,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>TBS Deteksi v2.2.4 — Native YOLO + Server | 2026-07-15 14:10 WIB</p>
+        <p>TBS Deteksi v2.6.0 — Rabu, 15-07-2026 13:10 WIB</p>
       </footer>
     </div>
   );

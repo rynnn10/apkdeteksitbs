@@ -17,7 +17,7 @@ Frontend React (Web) di-bundle ke dalam aplikasi Android (WebView) — bisa diin
 - 📊 **Dashboard statistik** — Pie chart distribusi + Bar chart tren harian (Recharts)
 - 📱 **Mobile-friendly UI** — Tombol besar, kontras tinggi, akses kamera via browser
 - ↩️ **Konfirmasi keluar** — Popup "Yakin ingin keluar?" saat tekan tombol back di HP
-- 🖥️ **Hybrid mode** — YOLOv8 deteksi via backend (server) atau TF.js klasifikasi (offline)
+- 🖥️ **Hybrid mode** — YOLOv8 deteksi via backend (server) atau YOLOv8 TF.js / klasifikasi TF.js (offline di HP)
 
 ## 📱 Build APK Android
 
@@ -418,6 +418,47 @@ model = YOLO("runs/detect/runs/train/tbs_yolov8/weights/best.pt")
 model.export(format="tflite", imgsz=640, nms=True)
 ```
 
+#### 📱 TF.js Export (On-Device Offline — untuk mode ONDEVICE di APK)
+**Apa ini?** Supaya HP bisa deteksi multi-TBS **tanpa server** (offline penuh), `yolov8_tbs.pt` perlu diexport ke format TF.js. Tidak perlu training ulang — pakai model `.pt` yang sudah ada.
+
+⚠️ **Jalankan di Google Colab**, bukan di laptop lokal — `pip install tensorflowjs` di environment lokal project ini bentrok versi dengan `numpy`/`tensorflow` yang sudah terpasang.
+
+**Langkah:**
+1. Buka [Google Colab](https://colab.research.google.com/), buat notebook baru
+2. Upload `yolov8_tbs.pt` ke Colab — jalankan cell ini dulu, lalu pilih file dari `backend/model_output/yolov8_tbs.pt` di laptop Anda:
+   ```python
+   from google.colab import files
+   uploaded = files.upload()
+   ```
+3. Jalankan cell export + convert (boleh 1 cell sekaligus, atau dipecah — yang penting urutannya jangan diacak):
+   ```python
+   !pip install -q ultralytics tensorflowjs
+   from ultralytics import YOLO
+   model = YOLO("yolov8_tbs.pt")
+   model.export(format="saved_model", imgsz=640, nms=True)  # -> yolov8_tbs_saved_model/
+
+   !tensorflowjs_converter --input_format=tf_saved_model --output_format=tfjs_graph_model \
+     yolov8_tbs_saved_model yolov8_tbs_web
+
+   !zip -r yolov8_tbs_web.zip yolov8_tbs_web
+   files.download("yolov8_tbs_web.zip")
+   ```
+4. Extract `yolov8_tbs_web.zip` di laptop Anda
+5. Copy **isi** folder (langsung `model.json` + file `.bin`, jangan folder bersarang) ke:
+   ```
+   tbs-deteksi/frontend/public/model_tfjs_yolo/
+   ```
+6. Build ulang seperti biasa:
+   ```powershell
+   cd frontend
+   npm run build
+   cd ..
+   Copy-Item frontend\dist\* app\src\main\assets\ -Recurse -Force
+   .\run.ps1
+   ```
+
+Kalau `yolov8_tbs.pt` nanti dilatih ulang dengan kelas berbeda, update juga `YOLO_LABELS` di `frontend/src/ondevice/model_loader.js` supaya urutannya tetap sama dengan `backend/model_output/labels.txt`.
+
 #### 📥 Setelah Training Selesai (Cell 8)
 Colab otomatis akan **mendownload** file ke laptop Anda:
 - `best.pt` → model YOLO hasil training (wajib)
@@ -516,5 +557,5 @@ Proyek ini dibuat untuk keperluan edukasi dan riset.
 ---
 
 **🌴 Kelapa Sawit Indonesia Maju!**  
-*v2.1.2 — 2026-07-14 23:30 UTC*
+*v2.6.0 — Rabu, 15-07-2026 13:10 WIB*
 
