@@ -4,6 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `AGENTS.md` also exists in this repo root and is treated as the primary AI guidance file for this project — read it too. This file adds architecture context that isn't obvious from a single file read.
 
+## Reporting changes back to the user
+
+The user (owner of this repo) is non-technical. After **every** change — even a one-line fix — end your reply with:
+
+1. A plain list of which files you touched.
+2. A "bahasa bayi" (baby-language / super simple, no jargon) explanation of what changed and why, in Indonesian. Explain it like you'd explain to a curious 5-year-old: short sentences, everyday analogies, no code terms like "IOHandler", "signature", "tensor", "props" — describe what the app does differently now, not the mechanism.
+
+Example of the tone to use:
+> File yang diubah: `model_loader.js`
+> Dulu HP-nya salah baca "peta" buat cari kotak TBS, jadi cuma nemu 1 kotak walau TBS-nya banyak. Sekarang petanya udah dibenerin, HP bisa nemu semua kotak TBS sekaligus, sama kayak kalau pakai server.
+
 ## Commands
 
 **Full build & install APK** (interactive, auto-detects devices):
