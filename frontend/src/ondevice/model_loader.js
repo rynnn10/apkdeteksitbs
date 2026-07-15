@@ -1,4 +1,4 @@
-/* Updated: Rabu, 15-07-2026 13:10 WIB | v2.5.0 | Add real YOLO TF.js detector (multi-box), classifier now 2nd fallback */
+/* Updated: Rabu, 15-07-2026 22:20 WIB | v2.6.1 | Fix: fileSystemIOHandler dropped model.json's `signature` field, which graph models (YOLO) need to know their input/output tensor names — silently broke predict(), fell back to classifier (always 1 box) */
 import * as tf from "@tensorflow/tfjs";
 import { letterboxParams, mapBoxToOriginal } from "./yolo_geometry";
 
@@ -141,7 +141,7 @@ function fileSystemIOHandler(baseDir) {
   return {
     load: async () => {
       const modelJson = JSON.parse(await readText(`${baseDir}/model.json`));
-      const weightsManifest = modelJson.weightsManifest;
+      const { weightsManifest, ...artifacts } = modelJson;
       const weightSpecs = [];
       const buffers = [];
       for (const group of weightsManifest) {
@@ -150,13 +150,15 @@ function fileSystemIOHandler(baseDir) {
           buffers.push(await readFile(`${baseDir}/${path}`));
         }
       }
+      // Spread every other top-level field through as-is (format, generatedBy,
+      // convertedBy, and — critical for graph models like the YOLO export —
+      // `signature`, which maps input/output tensor names. Dropping it silently
+      // breaks predict() on graph models while layers models keep working,
+      // since only graph models rely on it.
       return {
-        modelTopology: modelJson.modelTopology,
+        ...artifacts,
         weightSpecs,
         weightData: concatArrayBuffers(buffers),
-        format: modelJson.format,
-        generatedBy: modelJson.generatedBy,
-        convertedBy: modelJson.convertedBy,
       };
     },
   };

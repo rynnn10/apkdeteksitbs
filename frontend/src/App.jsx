@@ -1,4 +1,4 @@
-/* Updated: Rabu, 15-07-2026 13:10 WIB | v2.6.0 | Real on-device YOLO detector (multi-box) added */
+/* Updated: Rabu, 15-07-2026 22:20 WIB | v2.6.1 | Fix on-device YOLO always showing 1 box */
 import React, { useState } from "react";
 import DeteksiBaru from "./components/DeteksiBaru";
 import HasilDeteksi from "./components/HasilDeteksi";
@@ -68,7 +68,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>TBS Deteksi v2.6.0 — Rabu, 15-07-2026 13:10 WIB</p>
+        <p>TBS Deteksi v2.6.1 — Rabu, 15-07-2026 22:20 WIB</p>
       </footer>
     </div>
   );

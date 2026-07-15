@@ -1,4 +1,4 @@
-// Updated: Rabu, 15-07-2026 13:10 WIB | v2.6.0 — add real on-device YOLO detector (TF.js, multi-box, needs model_tfjs_yolo/ exported from Colab — see AGENTS.md)
+// Updated: Rabu, 15-07-2026 22:20 WIB | v2.6.1 — fix on-device YOLO always showing 1 box (IOHandler dropped model.json's signature field)
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
@@ -13,8 +13,8 @@ android {
     applicationId = "com.tbsdeteksi.kelapa.sawit"
     minSdk = 24
     targetSdk = 36
-    versionCode = 24
-    versionName = "2.6.0"
+    versionCode = 25
+    versionName = "2.6.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     buildConfigField("String", "BUILD_TIMESTAMP", "\"${System.currentTimeMillis()}\"")
