@@ -1,7 +1,7 @@
 """
 Load model, preprocess, run inference. Supports YOLO detection + TFLite/Keras classification fallback.
 
-Updated: 2026-07-14 22:30 UTC | v2.1.0
+Updated: 2026-07-15 13:40 WIB | v2.2.3 | YOLO confidence threshold 0.25 + classifier threshold 60% for non-TBS rejection
 """
 import os
 import numpy as np
@@ -174,6 +174,9 @@ class TBSDetector:
 
     def predict(self, image: Image.Image):
         img_w, img_h = image.size
+        YOLO_CONF_THRESHOLD = 0.25   # v2.2.3: filter low-confidence YOLO boxes
+        CLASSIFIER_CONF_THRESHOLD = 60.0  # v2.2.3: reject non-TBS images in classifier mode
+
         if self.mode == "yolo":
             results = self.model(image, verbose=False)
             detections = []
@@ -181,6 +184,8 @@ class TBSDetector:
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 cls_idx = int(box.cls[0])
                 conf = float(box.conf[0])
+                if conf < YOLO_CONF_THRESHOLD:
+                    continue  # v2.2.3: skip low-confidence detections
                 kelas = self.yolo_labels[cls_idx] if cls_idx < len(self.yolo_labels) else self.yolo_labels[0]
                 internal_kelas = _resolve_kelas(kelas)
                 info = KELAS_INFO[internal_kelas]
@@ -193,10 +198,17 @@ class TBSDetector:
                     "rekomendasi": info["rekomendasi"], "warna": info["warna"],
                     "bg_warna": info["bg_warna"], "icon": info["icon"],
                 })
+            # v2.2.3: if YOLO found nothing, try classifier fallback (with threshold)
+            if len(detections) == 0 and hasattr(self, 'classifier'):
+                result = self.classifier.predict(image)
+                if result["confidence"] >= CLASSIFIER_CONF_THRESHOLD:
+                    detections = [result]
             return detections, img_w, img_h
-        # ponytail: classifier fallback wraps single result as detection
+        # ponytail: classifier fallback wraps single result as detection (v2.2.3: with threshold)
         result = self.classifier.predict(image)
-        return [result], img_w, img_h
+        if result["confidence"] >= CLASSIFIER_CONF_THRESHOLD:
+            return [result], img_w, img_h
+        return [], img_w, img_h
 
 
 _detector = None

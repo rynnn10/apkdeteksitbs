@@ -2,14 +2,26 @@
 
 Monorepo: Android WebView + React frontend + FastAPI backend for palm oil ripeness detection.
 
+## Agent Guidance
+
+- This repo is a hybrid Android app built from a React web frontend and a Python backend. Most UI changes happen in `frontend/src/`; Android packaging is in `app/`; API logic is in `backend/`.
+- Use `.
+un.ps1` for the main build flow. For local web-only work, run the backend from `backend/` and the frontend from `frontend/`.
+- Do not edit generated frontend assets under `frontend/dist/` or `app/src/main/assets` directly; rebuild from source instead.
+- Backend endpoints are defined in `backend/main.py`; model loading and inference live in `backend/model_handler.py`.
+- Training and model workflow is separate from app packaging; use root training scripts only when requested.
+- There is no `.github/copilot-instructions.md` in this repo; `AGENTS.md` is the primary AI guidance file.
+
 ## Build Commands
 
 **Full build & install APK** (interactive, auto-detects devices):
+
 ```powershell
 .\run.ps1
 ```
 
 **Manual build steps (order matters):**
+
 ```powershell
 npm run build                                    # frontend/
 Copy-Item frontend\dist\* app\src\main\assets\ -Recurse -Force
@@ -32,6 +44,7 @@ VSCode `Ctrl+Shift+B` tasks pass unrecognized flags to `run.ps1` — they are ig
 ## Dev Mode
 
 Two terminals:
+
 ```powershell
 # Terminal 1 — Backend
 cd backend; pip install -r requirements.txt
@@ -68,6 +81,7 @@ Backend and frontend are independent in dev mode; Vite proxies API calls.
 ## Training
 
 Multiple training script variants at project root. All produce output in `backend/model_output/`:
+
 - `train_model_tbs.py` — MobileNetV2 transfer learning (baseline, 2-stage: head freeze → fine-tune)
 - `train_mobilenetv2_improved.py` — improved MobileNetV2 variant
 - `train_efficientnet.py` — EfficientNet variant
@@ -75,6 +89,7 @@ Multiple training script variants at project root. All produce output in `backen
 - `train_ordinal.py` — ordinal regression approach
 
 **Quick start:**
+
 ```powershell
 pip install -r requirements-training.txt
 python train_model_tbs.py                              # expects dataset/ with 5 class subfolders

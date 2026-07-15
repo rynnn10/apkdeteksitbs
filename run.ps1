@@ -301,12 +301,7 @@ function Copy-ToAssets {
         Copy-Item "$dist\*" $APP_ASSETS -Recurse -Force
         Write-Host "  Copied OK" -ForegroundColor Green
     }
-    # Copy YOLO TFLite model for native offline inference
-    $tfliteSrc = Join-Path $ROOT "backend\model_output\best.tflite"
-    if (Test-Path $tfliteSrc) {
-        Copy-Item $tfliteSrc (Join-Path $APP_ASSETS "best.tflite") -Force
-        Write-Host "  Copied best.tflite" -ForegroundColor Green
-    }
+    # ponytail: best.tflite not used — native YOLO removed, offline uses TF.js dummy
 }
 
 # ============================================================

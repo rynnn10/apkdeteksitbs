@@ -5,12 +5,14 @@ TBS Deteksi Kelapa Sawit — Fullstack App
   SPA: / (frontend dari ../frontend/dist/)
   Gambar: /uploads/
 
-Now with YOLOv8 object detection (multiple TBS per image).
-Updated: 2026-07-14 23:30 UTC | v2.1.2
+Now with YOLOv8 object detection (multiple TBS per image) + confidence thresholds for non-TBS rejection.
+Updated: 2026-07-15 14:10 WIB | v2.2.4
 """
 import os
 import sys
 import json
+import socket
+import subprocess
 from datetime import datetime
 from fastapi import FastAPI, File, UploadFile, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,8 +24,8 @@ import io
 from model_handler import get_detector
 from database import init_db, save_detection, get_all_history, get_stats
 
-APP_VERSION = "2.2.0"
-BUILD_DATE = "2026-07-15 00:00 UTC"
+APP_VERSION = "2.2.4"
+BUILD_DATE = "2026-07-15 14:10 WIB"
 
 DEV_MODE = "--dev" in sys.argv
 
@@ -86,26 +88,47 @@ async def predict(
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    for det in detections:
-        img_filename = f"{ts}_{det['kelas_pred']}.jpg"
-        img_path = os.path.join(UPLOAD_DIR, img_filename)
-        image.save(img_path, "JPEG")
-        det["image_url"] = f"/uploads/{img_filename}"
+    image_url = None
+    if detections:
+        for det in detections:
+            img_filename = f"{ts}_{det['kelas_pred']}.jpg"
+            img_path = os.path.join(UPLOAD_DIR, img_filename)
+            image.save(img_path, "JPEG")
+            det["image_url"] = f"/uploads/{img_filename}"
+        det_id = save_detection(
+            kelas="|".join(d["kelas_pred"] for d in detections),
+            confidence=max(d["confidence"] for d in detections),
+            rekomendasi="; ".join(d["rekomendasi"] for d in detections),
+            all_scores={"detections": detections},
+            image_path=img_path,
+            latitude=latitude, longitude=longitude,
+        )
+        image_status = "tbs"
+        message = None
+    else:
+        det_id = save_detection(
+            kelas="tidak_dikenal",
+            confidence=0.0,
+            rekomendasi="Gambar tidak dikenali sebagai TBS. Pastikan foto jelas dan objek yang dicari terlihat.",
+            all_scores={"detections": []},
+            image_path=None,
+            latitude=latitude, longitude=longitude,
+        )
+        image_status = "unknown"
+        message = (
+            "Gambar tidak dikenali sebagai TBS. Pastikan foto berisi tandan buah segar, "
+            "pencahayaan cukup, dan objek TBS terlihat jelas dalam frame."
+        )
 
-    det_id = save_detection(
-        kelas="|".join(d["kelas_pred"] for d in detections),
-        confidence=max(d["confidence"] for d in detections),
-        rekomendasi="; ".join(d["rekomendasi"] for d in detections),
-        all_scores={"detections": detections},
-        image_path=img_path if detections else None,
-        latitude=latitude, longitude=longitude,
-    )
-
+    no_detection = len(detections) == 0
     return {
         "detections": detections,
         "image_width": img_w,
         "image_height": img_h,
         "detection_count": len(detections),
+        "no_detection": no_detection,
+        "image_status": image_status,
+        "message": message,
         "id": det_id,
     }
 
@@ -136,12 +159,62 @@ if not DEV_MODE and os.path.isdir(FRONTEND_DIR):
         app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
 
 
+def _find_free_port(start_port=8000, max_attempts=10):
+    """Find first available port starting from start_port."""
+    for port in range(start_port, start_port + max_attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
+                continue
+    return None
+
+
+def _kill_port(port):
+    """Kill process listening on given port (Windows)."""
+    try:
+        result = subprocess.run(
+            f'netstat -ano | findstr :{port}',
+            shell=True, capture_output=True, text=True
+        )
+        if result.stdout:
+            for line in result.stdout.strip().split('\n'):
+                parts = line.strip().split()
+                if len(parts) >= 5 and 'LISTENING' in line:
+                    pid = parts[-1]
+                    subprocess.run(['taskkill', '/F', '/PID', pid], capture_output=True)
+                    print(f"[OK] Killed process PID {pid} on port {port}")
+                    return True
+    except Exception as e:
+        print(f"[WARN] Could not kill port {port}: {e}")
+    return False
+
+
 if __name__ == "__main__":
     import uvicorn
+    
+    # Auto-free port 8000 if in use
+    PORT = 8000
+    if not _find_free_port(PORT, 1):
+        print(f"[WARN] Port {PORT} in use, attempting to kill...")
+        _kill_port(PORT)
+        import time
+        time.sleep(1)
+        if not _find_free_port(PORT, 1):
+            # Try fallback port
+            fallback = _find_free_port(PORT + 1, 10)
+            if fallback:
+                print(f"[INFO] Using fallback port {fallback}")
+                PORT = fallback
+            else:
+                print("[ERROR] No available ports found!")
+                sys.exit(1)
+    
     print(f"\n{'='*60}")
     print("  TBS Deteksi Kelapa Sawit")
     print(f"  v{APP_VERSION} | {BUILD_DATE}")
     print(f"  Mode: {'DEV (API only)' if DEV_MODE else 'PROD'}")
-    print(f"  URL:  http://localhost:8000")
+    print(f"  URL:  http://localhost:{PORT}")
     print(f"{'='*60}\n")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)

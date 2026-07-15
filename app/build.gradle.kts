@@ -1,4 +1,4 @@
-// Updated: 2026-07-14 22:30 UTC | v2.1.0 — native YOLO TFLite + back button fix
+// Updated: 2026-07-15 16:30 UTC | v2.4.0 — removed native YOLO (TFLite broken), hybrid server + TF.js only
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
@@ -13,12 +13,12 @@ android {
     applicationId = "com.tbsdeteksi.kelapa.sawit"
     minSdk = 24
     targetSdk = 36
-    versionCode = 17
-    versionName = "2.2.0"
+    versionCode = 22
+    versionName = "2.4.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     buildConfigField("String", "BUILD_TIMESTAMP", "\"${System.currentTimeMillis()}\"")
-    buildConfigField("String", "BUILD_DATE", "\"2026-07-14 22:30:00 UTC\"")
+    buildConfigField("String", "BUILD_DATE", "\"2026-07-15 13:40:00 WIB\"")
   }
 
   signingConfigs {
@@ -27,6 +27,7 @@ android {
             val ksPath = System.getenv("KEYSTORE_PATH") ?: project.findProperty("KEYSTORE_PATH")?.toString()
       val ksStorePass = System.getenv("STORE_PASSWORD") ?: project.findProperty("STORE_PASSWORD")?.toString()
       val ksKeyPass = System.getenv("KEY_PASSWORD") ?: project.findProperty("KEY_PASSWORD")?.toString()
+
 
       if (ksPath != null && ksStorePass != null && ksKeyPass != null) {
         storeFile = file(ksPath)
@@ -99,7 +100,6 @@ dependencies {
   implementation(libs.kotlinx.coroutines.core)
 
   testImplementation(libs.androidx.compose.ui.test.junit4)
-  implementation("org.tensorflow:tensorflow-lite:2.12.0")
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
   testImplementation(libs.junit)
