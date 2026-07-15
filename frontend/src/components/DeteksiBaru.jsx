@@ -113,33 +113,33 @@ export default function DeteksiBaru({ onHasil }) {
     if (!image) return alert("Pilih atau ambil foto terlebih dahulu!");
     setLoading(true);
     try {
-      // Priority 1: Native YOLO (offline, bounding box)
-      if (window.NativeDetector?.isAvailable?.()) {
-        const base64 = await fileToBase64(image);
-        let raw;
-        try { raw = window.NativeDetector.detect(base64.split(",")[1]); }
-        catch (e) { throw new Error("Native error: " + e.message); }
-        const dets = JSON.parse(raw);
-        onHasil({
-          detections: dets.map(d => ({ ...d, all_scores: { [d.kelas_pred]: d.confidence / 100 } })),
-          detection_count: dets.length, image_width: 0, image_height: 0,
-        }, preview);
-      }
-      // Priority 2: Server (YOLO via backend)
-      else if (mode === "server") {
+      // Priority 1: Server (YOLO via backend) — works perfectly
+      if (mode === "server") {
         const formData = new FormData();
         formData.append("file", image);
         const res = await fetch(`${apiBase}/api/predict`, { method: "POST", body: formData });
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
-        onHasil(await res.json(), preview);
+        return onHasil(await res.json(), preview);
       }
-      // Priority 3: TF.js classifier (offline)
-      else {
-        const img = await blobToImage(image);
-        onHasil(await predictOnDevice(img), preview);
+      // Priority 2: Native YOLO (offline, try TFLite)
+      if (window.NativeDetector?.isAvailable?.()) {
+        const base64 = await fileToBase64(image);
+        const raw = window.NativeDetector.detect(base64.split(",")[1]);
+        const dets = JSON.parse(raw);
+        if (dets.length > 0) {
+          return onHasil({
+            detections: dets.map(d => ({ ...d, all_scores: { [d.kelas_pred]: d.confidence / 100 } })),
+            detection_count: dets.length, image_width: 0, image_height: 0,
+          }, preview);
+        }
+        // ponytail: native returned empty → fall through to TF.js
       }
+      // Priority 3: TF.js classifier / dummy (offline)
+      const img = await blobToImage(image);
+      onHasil(await predictOnDevice(img), preview);
     } catch (err) {
-      if (mode === "server" && !window.NativeDetector?.isAvailable?.()) {
+      // Fallback: if server fails, try native/TF.js
+      if (!window.NativeDetector?.isAvailable?.()) {
         try { const img = await blobToImage(image); onHasil(await predictOnDevice(img), preview); } catch {}
       }
       alert("Gagal deteksi: " + (err && err.message ? err.message : String(err)));
